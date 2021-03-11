@@ -7,11 +7,14 @@
     "sourceMap": true,
     "target": "es2020",
     "pretty": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
   },
   "include": [
     "src/**/*.ts",
     "test/**/*.ts",
   ],
+  "exclude": [
+    "/node_modules"
+  ]
   
 }

@@ -1,4 +1,4 @@
-import {Result as WithResult, Success as WithSuccess} from './with'
+import {Result as WithResult, Success as WithSuccess} from './types'
 
 /**
  * An async variant (and superset) of ContextManager<T>.
