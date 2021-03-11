@@ -1,6 +1,6 @@
 import {Use, ExitStack, With} from '../src/async'
 import {contextmanager} from "../src";
-import {Success} from '../src/with'
+import {Success} from '../src/types'
 
 describe('With', () => {
     test('error', async () => {

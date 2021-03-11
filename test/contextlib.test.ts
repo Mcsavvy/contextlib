@@ -4,10 +4,9 @@ import {
     Use,
     ContextManagerBase,
     ExitStack,
-    suppress,
-    timed,
-    closing
 } from '../src/contextlib'
+
+import {closing, suppress, timed} from '../src/utils'
 
 test("Generator contextmanagers must yield once", () => {
     const nonYieldingGeneratorCM = contextmanager(function*(){
@@ -20,7 +19,6 @@ test("Generator contextmanagers must yield once", () => {
     expect(() => {
         With(nonYieldingGeneratorCM(), ()=>{})
     }).toThrow("Generator did not yield!")
-
     expect(() => {
         With(multiYieldingGeneratorCM(), ()=>{})
     }).toThrow("Generator did not stop!")

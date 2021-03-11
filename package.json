@@ -1,6 +1,6 @@
 {
   "name": "contextlib",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "JS implementation of python's context managers. With 💙 { ... }",
   "main": "dist/javascript/src/index.js",
   "type": "module",
