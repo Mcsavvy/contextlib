@@ -1,2 +1,6 @@
-tsconfig.json
 test.ts
+node_modules
+package-lock.json
+.vscode
+tsconfig.json
+babel.config.js
