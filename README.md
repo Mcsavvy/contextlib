@@ -31,10 +31,14 @@ Opened socket.
 Closed socket.
 ```
 
-Now that's how easy it is to get started. There are no tutorial, just this brief documentation.
-#### May we?
+Installation
+------------
+> npm install contextlib
 
-### What are context managers?
+
+Usage
+-----
+#### What are context managers?
 Context managers are resource managers that allow you to allocate and release resources precisely when you want to.
 
 **Put Simply**: You tell them what to do at the beginning and at the end and they make sure they do it no matter what happens - _Even an Exception is not an exception_.
@@ -146,14 +150,16 @@ With(new ExitStack(), exitstack => {
 + Written in typescript
 + Transpiled to javascript
 + Typescript support for 'contextlib.js'
++ JSDoc comments on all classes, methods, functions and parameters
 + Comprehensive tests using jest
 
 ##### Exports
 + With (_default export_)
 + ContextManagerBase
-+ contextmanager
 + ExitStack
++ GeneratorCM
++ contextmanager
 + nullcontext
-+ timeTracker
++ timed
 + closing
 + suppress
