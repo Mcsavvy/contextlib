@@ -1,6 +1,4 @@
-test.ts
-node_modules
-package-lock.json
-.vscode
-tsconfig.json
-babel.config.js
+/.vscode
+/.idea
+/node_modules
+/coverage

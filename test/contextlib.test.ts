@@ -1,6 +1,4 @@
-import {contextmanager, With, ContextManagerBase, ExitStack, suppress, timed, closing} from './contextlib'
-
-console
+import {contextmanager, With, ContextManagerBase, ExitStack, suppress, timed, closing} from '../src/contextlib'
 
 test("Generator contextmanagers must yield once", () => {
     var nonYieldingGeneratorCM = contextmanager(function*(){
@@ -53,15 +51,15 @@ test(`When multiple errors occur in an exitstack, the last error would be thrown
 })
 
 test('Any error in a context body would be thrown in the context manager', () => {
-    var cm = contextmanager(function*(){
-        var error: Error;
+    var cm = contextmanager(function* () {
+        let error: Error | undefined;
         try {
             yield;
-        } catch (e){
-            error = e
+        } catch (e) {
+            error = e as Error
         }
         expect(error).toBeDefined()
-        expect(error.message).toBe("this error was throw in the body")
+        expect((error as Error).message).toBe("this error was throw in the body")
     })
     With(cm(), () => {
         throw new Error("this error was throw in the body")

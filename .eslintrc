@@ -1,0 +1,66 @@
+{
+  "root": true,
+  "plugins": [
+    "@typescript-eslint/eslint-plugin",
+    "import",
+    "jest"
+  ],
+  "extends": [
+    "standard-with-typescript",
+    "plugin:import/errors",
+    "plugin:import/typescript"
+  ],
+  "env": {
+    "jest": true
+  },
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": [
+      "./tsconfig.eslint.json"
+    ]
+  },
+  "ignorePatterns": [
+    "**/*.js",
+    "**/*.d.ts"
+  ],
+  "rules": {
+    "arrow-spacing": "off",
+    "block-spacing": "off",
+    "comma-dangle": "off",
+    "eol-last": "off",
+    "eqeqeq": "off",
+    "generator-star-spacing": "off",
+    "new-cap": "off",
+    "new-parens": "off",
+    "node/handle-callback-err": "off",
+    "no-extra-parens": "off",
+    "no-ex-assign": "off",
+    "no-multiple-empty-lines": "off",
+    "no-multi-spaces": "off",
+    "no-trailing-spaces": "off",
+    "no-unsafe-finally": "off",
+    "object-curly-spacing": "off",
+    "one-var": "off",
+    "padded-blocks": "off",
+    "spaced-comment": "off",
+    "space-before-blocks": "off",
+    "space-infix-ops": "off",
+    "@typescript-eslint/array-type": "off",
+    "@typescript-eslint/brace-style": "off",
+    "@typescript-eslint/comma-spacing": "off",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/indent": "off",
+    "@typescript-eslint/keyword-spacing": "off",
+    "@typescript-eslint/lines-between-class-members": "off",
+    "@typescript-eslint/member-delimiter-style": "off",
+    "@typescript-eslint/no-invalid-void-type": "off",
+    "@typescript-eslint/no-throw-literal": "off",
+    "@typescript-eslint/no-unused-expressions": "off",
+    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/prefer-nullish-coalescing": "off",
+    "@typescript-eslint/quotes": "off",
+    "@typescript-eslint/semi": "off",
+    "@typescript-eslint/space-before-function-paren": "off",
+    "@typescript-eslint/strict-boolean-expressions": "off"
+  }
+}
