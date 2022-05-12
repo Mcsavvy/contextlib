@@ -1,15 +1,18 @@
-/**@alias Error */
+/**
+ * @alias Error
+ * @deprecated
+ */
 declare type ErrorType = Error;
 /**this function is called whe the context is being left
  * if an error is throw in the context body, the error
  * is passed to this method. return a true value to suppress
  * the error
  */
-declare type exit = (...error: [ErrorType?]) => any;
+declare type exit = (...error: [any?]) => any;
 /**this function is called when the context is entered, the return value is
  * passes to the context body as argument
  */
-declare type enter<T> = (...args: []) => T;
+declare type enter<T> = (...args: [any?]) => T;
 /**
  * Context managers are resource managers that allow you
  * to allocate and release resources precisely when you want to.
@@ -36,7 +39,7 @@ declare type genFunc<T, Y extends any[]> = (...args: Y) => gen<T>;
 /**This is the body of a context,
  * it accepts the value returned from the contextmanager's
  * 'enter' method*/
-declare type body<T> = (...args: [T?]) => void;
+declare type body<T> = (...args: [T]) => void;
 /**
  * The With function manages context, it enters the given context on invocation
  * and exits the context on return.
@@ -88,7 +91,7 @@ declare class ExitStack implements ContextManager<ExitStack> {
     private _makeExitWrapper;
     constructor();
     enter(): ExitStack;
-    exit(error?: ErrorType): any;
+    exit(error?: any): any;
     /**
      * Add a regular callback to the ExitStack.
      * @param cb a regular callback*/
@@ -194,7 +197,7 @@ declare class nullcontext implements ContextManager<void> {
  * (in milliseconds). defaults to a timelogger that logs
  * the time in this format `HH:MM:SS:mmm`
  */
-declare var timed: (args_0: (arg_0: number) => any) => GeneratorCM<void>;
+declare const timed: (args_0: (arg_0: number) => any) => GeneratorCM<void>;
 /**Context manager that automatically closes something at the end of the body
  *
  * ```
@@ -219,8 +222,7 @@ declare var closing: (thing: any) => GeneratorCM<any>;
  * ```
  * @param errors Error classes e.g: (`TypeError`, `SyntaxError`, `CustomError`)
  */
-declare var suppress: (...args: ErrorConstructor[]) => GeneratorCM<any>;
+declare var suppress: (...args: ErrorConstructor[]) => GeneratorCM<undefined>;
 export { With, ContextManagerBase, ExitStack, GeneratorCM, contextmanager, nullcontext, timed, suppress, closing };
 export default With;
 export { enter, exit, genFunc, gen, ContextManager };
-//# sourceMappingURL=contextlib.d.ts.map

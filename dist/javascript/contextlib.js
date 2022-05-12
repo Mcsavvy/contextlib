@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.closing = exports.suppress = exports.timed = exports.nullcontext = exports.contextmanager = exports.GeneratorCM = exports.ExitStack = exports.ContextManagerBase = exports.With = void 0;
 /**
  * The With function manages context, it enters the given context on invocation
  * and exits the context on return.
@@ -14,18 +17,19 @@ function With(manager, body) {
         manager.exit();
     }
     catch (e) {
-        var r = manager.exit(e);
-        if (!r) {
+        if (!manager.exit(e)) {
             throw e;
         }
     }
 }
+exports.With = With;
 /**context manager class to inherit from.
  * It returns itself in it's enter method like the default python implementation.*/
 class ContextManagerBase {
     enter() { return this; }
     exit() { }
 }
+exports.ContextManagerBase = ContextManagerBase;
 /**
  * ExitStack is a context manager that manages a stack of context managers.
  * It can be used to manage multiple nested context managers.
@@ -51,29 +55,32 @@ class ContextManagerBase {
  * ```
  */
 class ExitStack {
-    /**An array of all callbacks plus contexts exit methds */
-    _exitCallbacks;
+    constructor() {
+        this._exitCallbacks = [];
+    }
     /**turn a regular callback to an exit function
      * @param cb a regular callback
      * @returns an exit function
      */
     _makeExitWrapper(cb) {
-        function helper(error) {
+        function helper() {
             return cb();
         }
         return helper;
     }
-    constructor() {
-        this._exitCallbacks = [];
+    enter() {
+        return this;
     }
-    enter() { return this; }
     exit(error) {
-        var hasError = error != undefined;
-        var suppressed = false, pendingRaise = false, frameErr = error;
+        let suppressed = false;
+        let pendingRaise = false;
         // callbacks are invoked in LIFO order to match the behaviour of
         // nested context managers
-        while (this._exitCallbacks.length > 0) {
-            var cb = this._exitCallbacks.pop();
+        while (true) {
+            const cb = this._exitCallbacks.pop();
+            if (cb === undefined) {
+                break;
+            }
             try {
                 if (cb(error)) {
                     suppressed = true;
@@ -82,26 +89,14 @@ class ExitStack {
                 }
             }
             catch (e) {
-                if (!(e instanceof Error)) {
-                    console.log("error is not an Error instance");
-                    e = new Error(e.toString());
-                }
-                var newError = e;
                 pendingRaise = true;
-                error = error || newError;
+                error = error || e;
             }
         }
         if (pendingRaise) {
             throw error;
-            // try {
-            //     var fixedCause = error.cause;
-            //     throw error
-            // } catch (e){
-            //     e.cause = fixedCause;
-            //     throw e as Error
-            // }
         }
-        return hasError && suppressed;
+        return arguments.length !== 0 && suppressed;
     }
     /**
      * Add a regular callback to the ExitStack.
@@ -138,6 +133,7 @@ class ExitStack {
         return stack;
     }
 }
+exports.ExitStack = ExitStack;
 /**
  * GeneratorCM is a context manager that wraps a generator.
  * The generator should yield only once. The value yielded is passed to the
@@ -169,8 +165,6 @@ class ExitStack {
  * the error would be re-raised when the context is exited.
  */
 class GeneratorCM {
-    /**A generator */
-    gen;
     /**@param gen A generator */
     constructor(gen) {
         this.gen = gen;
@@ -199,6 +193,7 @@ class GeneratorCM {
         return true;
     }
 }
+exports.GeneratorCM = GeneratorCM;
 /**
  * contextmanager decorator to wrap a generator function and turn
  * it into a context manager.
@@ -228,6 +223,7 @@ function contextmanager(func) {
     Object.defineProperty(helper, 'name', { value: func.name || 'generatorcontext' });
     return helper;
 }
+exports.contextmanager = contextmanager;
 /**
  * This acts as a stand-in when a context manager is required.
  * It does not additional processing.*/
@@ -235,6 +231,7 @@ class nullcontext {
     enter() { }
     exit(error) { }
 }
+exports.nullcontext = nullcontext;
 function _timelogger(time) {
     var date = new Date(time), hours = date.getUTCHours().toString().padStart(2, '0'), minutes = date.getUTCMinutes().toString().padStart(2, '0'), seconds = date.getUTCSeconds().toString().padStart(2, '0'), milliseconds = date.getUTCMilliseconds().toString().padStart(3, '0');
     console.log(`Elapsed Time: ${hours}:${minutes}:${seconds}:${milliseconds}`);
@@ -255,7 +252,7 @@ function _timelogger(time) {
  * (in milliseconds). defaults to a timelogger that logs
  * the time in this format `HH:MM:SS:mmm`
  */
-var timed = contextmanager(function* (logger = _timelogger) {
+const timed = contextmanager(function* (logger = _timelogger) {
     var start = Date.now();
     try {
         start = Date.now();
@@ -265,6 +262,7 @@ var timed = contextmanager(function* (logger = _timelogger) {
         logger(Date.now() - start);
     }
 });
+exports.timed = timed;
 /**Context manager that automatically closes something at the end of the body
  *
  * ```
@@ -282,6 +280,7 @@ var closing = contextmanager(function* closing(thing) {
         thing.close();
     }
 });
+exports.closing = closing;
 /**
  * Context manager used to suppress specific errors.
  *
@@ -310,6 +309,5 @@ var suppress = contextmanager(function* suppress(...errors) {
         throw error;
     }
 });
-export { With, ContextManagerBase, ExitStack, GeneratorCM, contextmanager, nullcontext, timed, suppress, closing };
-export default With;
-//# sourceMappingURL=contextlib.js.map
+exports.suppress = suppress;
+exports.default = With;
