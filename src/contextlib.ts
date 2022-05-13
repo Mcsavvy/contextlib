@@ -1,18 +1,14 @@
-/**
- * @alias Error
- * @deprecated
- */
-type ErrorType = Error;
-
 /**this function is called whe the context is being left
  * if an error is throw in the context body, the error
  * is passed to this method. return a true value to suppress
  * the error
+ * @deprecated
  */
 type exit = (...error: [any?]) => any;
 
 /**this function is called when the context is entered, the return value is
  * passes to the context body as argument
+ * @deprecated
  */
 type enter<T> = (...args: [any?]) => T;
 
@@ -23,29 +19,30 @@ type enter<T> = (...args: [any?]) => T;
  * A context manager can be any class or object, as long
  * as it correctly implemets the 'enter' and 'exit' method
  */
-interface ContextManager<T=any> {
+interface ContextManager<T = any> {
     /**this method is called when the context is being entered, the return value is
      * passes to the context body as argument
      */
-    enter: enter<T>;
+    enter: (...args: [any?]) => T;
     /**this method is called whe the context is being left
      * if an error is throw in the context body, the error
      * is passed to this method. return a true value to suppress
      * the error
      */
-    exit: exit;
+    exit: (...error: [any?]) => any;
 }
 
-/**A generator */
-type gen<T> = Generator<T, any>
+/**
+ * A generator
+ * @deprecated
+ */
+type gen<T> = Generator<T>
 
-/**This function yield a generator when called with <args>? */
-type genFunc<T, Y extends any[]> = (...args: Y) => gen<T>
-
-/**This is the body of a context,
- * it accepts the value returned from the contextmanager's
- * 'enter' method*/
-type body<T> = (val: T) => void
+/**
+ * This function yield a generator when called with <args>?
+ * @deprecated
+ */
+type genFunc<T, Y extends any[]> = (...args: Y) => Generator<T>
 
 /**
  * The With function manages context, it enters the given context on invocation
@@ -59,7 +56,7 @@ type body<T> = (val: T) => void
  * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
  * @param body the body function for this context*/
-function With<T>(manager: ContextManager<T>, body: body<T>): void {
+function With<T>(manager: ContextManager<T>, body: (val: T) => void): void {
     const val = manager.enter()
     try {
         body(val)
@@ -105,14 +102,14 @@ function With<T>(manager: ContextManager<T>, body: body<T>): void {
  */
 class ExitStack implements ContextManager<ExitStack> {
     /**An array of all callbacks plus contexts exit methds */
-    _exitCallbacks: exit[]
+    _exitCallbacks: Function[]
 
     /**turn a regular callback to an exit function
      * @param cb a regular callback
      * @returns an exit function
      */
-    private _makeExitWrapper(cb: Function): exit {
-        function helper(): any {
+    private _makeExitWrapper(cb: Function): Function {
+        function helper() {
             return cb();
         }
 
@@ -226,10 +223,10 @@ class ExitStack implements ContextManager<ExitStack> {
  */
  class GeneratorCM<T> implements ContextManager<T> {
     /**A generator */
-    gen: gen<T>
+    gen: Generator<T>
 
     /**@param gen A generator */
-    constructor(gen: gen<T>) {
+    constructor(gen: Generator<T>) {
         this.gen = gen
     }
 
@@ -274,7 +271,7 @@ class ExitStack implements ContextManager<ExitStack> {
  * @param func a generator function or any function that returns a generator
  * @returns a function that returns a GeneratorCM when called with the argument
  * for func*/
-function contextmanager<T,Y extends any[]>(func: genFunc<T,Y>): (...args: Y) => GeneratorCM<T> {
+function contextmanager<T, Y extends any[]>(func: (...args: Y) => Generator<T>): (...args: Y) => GeneratorCM<T> {
     function helper(...args: Y){
         const gen = func(...args)
         return new GeneratorCM<T>(gen)

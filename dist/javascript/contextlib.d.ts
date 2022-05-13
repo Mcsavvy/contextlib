@@ -2,10 +2,12 @@
  * if an error is throw in the context body, the error
  * is passed to this method. return a true value to suppress
  * the error
+ * @deprecated
  */
 declare type exit = (...error: [any?]) => any;
 /**this function is called when the context is entered, the return value is
  * passes to the context body as argument
+ * @deprecated
  */
 declare type enter<T> = (...args: [any?]) => T;
 /**
@@ -19,22 +21,24 @@ interface ContextManager<T = any> {
     /**this method is called when the context is being entered, the return value is
      * passes to the context body as argument
      */
-    enter: enter<T>;
+    enter: (...args: [any?]) => T;
     /**this method is called whe the context is being left
      * if an error is throw in the context body, the error
      * is passed to this method. return a true value to suppress
      * the error
      */
-    exit: exit;
+    exit: (...error: [any?]) => any;
 }
-/**A generator */
-declare type gen<T> = Generator<T, any>;
-/**This function yield a generator when called with <args>? */
-declare type genFunc<T, Y extends any[]> = (...args: Y) => gen<T>;
-/**This is the body of a context,
- * it accepts the value returned from the contextmanager's
- * 'enter' method*/
-declare type body<T> = (val: T) => void;
+/**
+ * A generator
+ * @deprecated
+ */
+declare type gen<T> = Generator<T>;
+/**
+ * This function yield a generator when called with <args>?
+ * @deprecated
+ */
+declare type genFunc<T, Y extends any[]> = (...args: Y) => Generator<T>;
 /**
  * The With function manages context, it enters the given context on invocation
  * and exits the context on return.
@@ -47,7 +51,7 @@ declare type body<T> = (val: T) => void;
  * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
  * @param body the body function for this context*/
-declare function With<T>(manager: ContextManager<T>, body: body<T>): void;
+declare function With<T>(manager: ContextManager<T>, body: (val: T) => void): void;
 /**context manager class to inherit from.
  * It returns itself in it's enter method like the default python implementation.*/
 declare class ContextManagerBase implements ContextManager<ContextManagerBase> {
@@ -80,7 +84,7 @@ declare class ContextManagerBase implements ContextManager<ContextManagerBase> {
  */
 declare class ExitStack implements ContextManager<ExitStack> {
     /**An array of all callbacks plus contexts exit methds */
-    _exitCallbacks: exit[];
+    _exitCallbacks: Function[];
     /**turn a regular callback to an exit function
      * @param cb a regular callback
      * @returns an exit function
@@ -143,9 +147,9 @@ declare class ExitStack implements ContextManager<ExitStack> {
  */
 declare class GeneratorCM<T> implements ContextManager<T> {
     /**A generator */
-    gen: gen<T>;
+    gen: Generator<T>;
     /**@param gen A generator */
-    constructor(gen: gen<T>);
+    constructor(gen: Generator<T>);
     enter(): T;
     exit(error?: any): boolean;
 }
@@ -170,7 +174,7 @@ declare class GeneratorCM<T> implements ContextManager<T> {
  * @param func a generator function or any function that returns a generator
  * @returns a function that returns a GeneratorCM when called with the argument
  * for func*/
-declare function contextmanager<T, Y extends any[]>(func: genFunc<T, Y>): (...args: Y) => GeneratorCM<T>;
+declare function contextmanager<T, Y extends any[]>(func: (...args: Y) => Generator<T>): (...args: Y) => GeneratorCM<T>;
 /**
  * This acts as a stand-in when a context manager is required.
  * It does not additional processing.*/
