@@ -1,3 +1,4 @@
+import { Result as WithResult } from './with';
 /**this function is called whe the context is being left
  * if an error is throw in the context body, the error
  * is passed to this method. return a true value to suppress
@@ -17,17 +18,17 @@ declare type enter<T> = (...args: [any?]) => T;
  * A context manager can be any class or object, as long
  * as it correctly implemets the 'enter' and 'exit' method
  */
-interface ContextManager<T = any> {
+interface ContextManager<T = unknown> {
     /**this method is called when the context is being entered, the return value is
      * passes to the context body as argument
      */
-    enter: (...args: [any?]) => T;
+    enter: () => T;
     /**this method is called whe the context is being left
      * if an error is throw in the context body, the error
      * is passed to this method. return a true value to suppress
      * the error
      */
-    exit: (...error: [any?]) => any;
+    exit: (err?: unknown) => unknown;
 }
 /**
  * A generator
@@ -51,7 +52,12 @@ declare type genFunc<T, Y extends any[]> = (...args: Y) => Generator<T>;
  * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
  * @param body the body function for this context*/
-declare function With<T>(manager: ContextManager<T>, body: (val: T) => void): void;
+declare function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => R): WithResult<R>;
+/**
+ * Use constructs a generator that may be used to fulfil the same role as With,
+ * though without the suppression or error handling capabilities.
+ */
+declare function Use<T = unknown>(manager: ContextManager<T>): Generator<T>;
 /**context manager class to inherit from.
  * It returns itself in it's enter method like the default python implementation.*/
 declare class ContextManagerBase implements ContextManager<ContextManagerBase> {
@@ -85,11 +91,6 @@ declare class ContextManagerBase implements ContextManager<ContextManagerBase> {
 declare class ExitStack implements ContextManager<ExitStack> {
     /**An array of all callbacks plus contexts exit methds */
     _exitCallbacks: Function[];
-    /**turn a regular callback to an exit function
-     * @param cb a regular callback
-     * @returns an exit function
-     */
-    private _makeExitWrapper;
     constructor();
     enter(): ExitStack;
     exit(error?: any): any;
@@ -228,6 +229,6 @@ declare const closing: (thing: {
  * @param errors Error classes e.g: (`TypeError`, `SyntaxError`, `CustomError`)
  */
 declare const suppress: (...args: ErrorConstructor[]) => GeneratorCM<undefined>;
-export { With, ContextManagerBase, ExitStack, GeneratorCM, contextmanager, nullcontext, timed, suppress, closing };
+export { With, Use, ContextManagerBase, ExitStack, GeneratorCM, contextmanager, nullcontext, timed, suppress, closing };
 export default With;
 export { enter, exit, genFunc, gen, ContextManager };

@@ -17,6 +17,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.AsyncExitStack = exports.AsyncUse = exports.AsyncWith = void 0;
 const contextlib_1 = __importDefault(require("./contextlib"));
-__exportStar(require("./contextlib"), exports);
 exports.default = contextlib_1.default;
+__exportStar(require("./contextlib"), exports);
+var async_1 = require("./async");
+Object.defineProperty(exports, "AsyncWith", { enumerable: true, get: function () { return async_1.With; } });
+Object.defineProperty(exports, "AsyncUse", { enumerable: true, get: function () { return async_1.Use; } });
+Object.defineProperty(exports, "AsyncExitStack", { enumerable: true, get: function () { return async_1.ExitStack; } });

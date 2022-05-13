@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.closing = exports.suppress = exports.timed = exports.nullcontext = exports.contextmanager = exports.GeneratorCM = exports.ExitStack = exports.ContextManagerBase = exports.With = void 0;
+exports.closing = exports.suppress = exports.timed = exports.nullcontext = exports.contextmanager = exports.GeneratorCM = exports.ExitStack = exports.ContextManagerBase = exports.Use = exports.With = void 0;
 /**
  * The With function manages context, it enters the given context on invocation
  * and exits the context on return.
@@ -15,18 +15,37 @@ exports.closing = exports.suppress = exports.timed = exports.nullcontext = expor
  * @param body the body function for this context*/
 function With(manager, body) {
     const val = manager.enter();
+    let result;
     try {
-        body(val);
+        result = { result: body(val) };
     }
-    catch (e) {
-        if (!manager.exit(e)) {
-            throw e;
+    catch (error) {
+        if (!manager.exit(error)) {
+            throw error;
         }
-        return;
+        return {
+            error,
+            suppressed: true
+        };
     }
     manager.exit();
+    return result;
 }
 exports.With = With;
+/**
+ * Use constructs a generator that may be used to fulfil the same role as With,
+ * though without the suppression or error handling capabilities.
+ */
+function* Use(manager) {
+    const val = manager.enter();
+    try {
+        yield val;
+    }
+    finally {
+        manager.exit();
+    }
+}
+exports.Use = Use;
 /**context manager class to inherit from.
  * It returns itself in it's enter method like the default python implementation.*/
 class ContextManagerBase {
@@ -62,16 +81,6 @@ class ExitStack {
     constructor() {
         this._exitCallbacks = [];
     }
-    /**turn a regular callback to an exit function
-     * @param cb a regular callback
-     * @returns an exit function
-     */
-    _makeExitWrapper(cb) {
-        function helper() {
-            return cb();
-        }
-        return helper;
-    }
     enter() {
         return this;
     }
@@ -106,7 +115,7 @@ class ExitStack {
      * Add a regular callback to the ExitStack.
      * @param cb a regular callback*/
     callback(cb) {
-        this._exitCallbacks.push(this._makeExitWrapper(cb));
+        this._exitCallbacks.push(cb);
     }
     /**
      * Add a context manager to the ExitStack. The context manager's

@@ -1,3 +1,5 @@
+import {Result as WithResult, Success as WithSuccess} from './with'
+
 /**this function is called whe the context is being left
  * if an error is throw in the context body, the error
  * is passed to this method. return a true value to suppress
@@ -19,17 +21,17 @@ type enter<T> = (...args: [any?]) => T;
  * A context manager can be any class or object, as long
  * as it correctly implemets the 'enter' and 'exit' method
  */
-interface ContextManager<T = any> {
+interface ContextManager<T = unknown> {
     /**this method is called when the context is being entered, the return value is
      * passes to the context body as argument
      */
-    enter: (...args: [any?]) => T;
+    enter: () => T
     /**this method is called whe the context is being left
      * if an error is throw in the context body, the error
      * is passed to this method. return a true value to suppress
      * the error
      */
-    exit: (...error: [any?]) => any;
+    exit: (err?: unknown) => unknown
 }
 
 /**
@@ -56,17 +58,35 @@ type genFunc<T, Y extends any[]> = (...args: Y) => Generator<T>
  * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
  * @param body the body function for this context*/
-function With<T>(manager: ContextManager<T>, body: (val: T) => void): void {
+function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => R): WithResult<R> {
     const val = manager.enter()
+    let result: WithSuccess<R> | undefined
     try {
-        body(val)
-    } catch (e) {
-        if (!manager.exit(e)) {
-            throw e
+        result = {result: body(val)}
+    } catch (error) {
+        if (!manager.exit(error)) {
+            throw error
         }
-        return
+        return {
+            error,
+            suppressed: true
+        }
     }
     manager.exit()
+    return result
+}
+
+/**
+ * Use constructs a generator that may be used to fulfil the same role as With,
+ * though without the suppression or error handling capabilities.
+ */
+function* Use<T = unknown>(manager: ContextManager<T>): Generator<T> {
+    const val = manager.enter()
+    try {
+        yield val
+    } finally {
+        manager.exit()
+    }
 }
 
 /**context manager class to inherit from.
@@ -103,18 +123,6 @@ function With<T>(manager: ContextManager<T>, body: (val: T) => void): void {
 class ExitStack implements ContextManager<ExitStack> {
     /**An array of all callbacks plus contexts exit methds */
     _exitCallbacks: Function[]
-
-    /**turn a regular callback to an exit function
-     * @param cb a regular callback
-     * @returns an exit function
-     */
-    private _makeExitWrapper(cb: Function): Function {
-        function helper() {
-            return cb();
-        }
-
-        return helper;
-    }
 
     constructor() {
         this._exitCallbacks = [];
@@ -156,7 +164,7 @@ class ExitStack implements ContextManager<ExitStack> {
      * Add a regular callback to the ExitStack.
      * @param cb a regular callback*/
     callback(cb: Function) {
-        this._exitCallbacks.push(this._makeExitWrapper(cb))
+        this._exitCallbacks.push(cb)
     }
 
     /**
@@ -368,6 +376,7 @@ const suppress = contextmanager(function* suppress(...errors: (typeof Error)[]){
 
 export {
     With,
+    Use,
     ContextManagerBase,
     ExitStack,
     GeneratorCM,
