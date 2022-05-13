@@ -57,7 +57,7 @@ declare function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T)
  * Use constructs a generator that may be used to fulfil the same role as With,
  * though without the suppression or error handling capabilities.
  */
-declare function Use<T = unknown>(manager: ContextManager<T>): Generator<T>;
+declare function Use<T>(manager: ContextManager<T>): Generator<T>;
 /**context manager class to inherit from.
  * It returns itself in it's enter method like the default python implementation.*/
 declare class ContextManagerBase implements ContextManager<ContextManagerBase> {

@@ -80,7 +80,7 @@ function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => R): 
  * Use constructs a generator that may be used to fulfil the same role as With,
  * though without the suppression or error handling capabilities.
  */
-function* Use<T = unknown>(manager: ContextManager<T>): Generator<T> {
+function* Use<T>(manager: ContextManager<T>): Generator<T> {
     const val = manager.enter()
     try {
         yield val

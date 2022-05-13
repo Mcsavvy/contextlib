@@ -34,7 +34,7 @@ export async function With<T, R = unknown>(manager: ContextManager<T>, body: (va
  * It differs in that, due to the limitations of JS generators, exit will not
  * be awaited.
  */
-export async function* Use<T = unknown>(manager: ContextManager<T>): AsyncGenerator<T> {
+export async function* Use<T>(manager: ContextManager<T>): AsyncGenerator<T> {
     const val = await manager.enter()
     try {
         yield val

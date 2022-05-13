@@ -15,7 +15,7 @@ export declare function With<T, R = unknown>(manager: ContextManager<T>, body: (
  * It differs in that, due to the limitations of JS generators, exit will not
  * be awaited.
  */
-export declare function Use<T = unknown>(manager: ContextManager<T>): AsyncGenerator<T>;
+export declare function Use<T>(manager: ContextManager<T>): AsyncGenerator<T>;
 /**
  * An async implementation of ExitStack.
  */
