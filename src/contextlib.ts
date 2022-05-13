@@ -45,27 +45,31 @@ type genFunc<T, Y extends any[]> = (...args: Y) => gen<T>
 /**This is the body of a context,
  * it accepts the value returned from the contextmanager's
  * 'enter' method*/
-type body<T> = (...args: [T]) => void
+type body<T> = (val: T) => void
 
 /**
  * The With function manages context, it enters the given context on invocation
  * and exits the context on return.
  * It accepts two arguments, a context manager and a callback.
- * The calback is called with the context manager's return value as argument.
+ * The callback is called with the context manager's return value as argument.
  * If an error is raised in the callback, the context manager's `exit()` method
  * is called with the error as argument.
  * If the context manager's `exit()` method returns true, the error is suppressed.
+ * If the context manager's enter does not raise an error, and no error is raised
+ * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
  * @param body the body function for this context*/
 function With<T>(manager: ContextManager<T>, body: body<T>): void {
+    const val = manager.enter()
     try {
-        body(manager.enter());
-        manager.exit();
+        body(val)
     } catch (e) {
         if (!manager.exit(e)) {
             throw e
         }
+        return
     }
+    manager.exit()
 }
 
 /**context manager class to inherit from.
