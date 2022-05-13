@@ -239,7 +239,7 @@ class ExitStack implements ContextManager<ExitStack> {
             throw Error("Generator did not yield!")
         }; return value;
     }
-    exit(error?: ErrorType) {
+    exit(error?: any) {
         if (error) {
             this.gen.throw(error)
             // reraise the error inside the generator
@@ -252,7 +252,6 @@ class ExitStack implements ContextManager<ExitStack> {
         return true
     }
 }
-
 
 /**
  * contextmanager decorator to wrap a generator function and turn
@@ -289,7 +288,7 @@ function contextmanager<T,Y extends any[]>(func: genFunc<T,Y>): (...args: Y) => 
  * It does not additional processing.*/
  class nullcontext implements ContextManager<void> {
     enter(): void {  }
-    exit(error?: ErrorType): void {  }
+    exit(error?: any): void {  }
 }
 function _timelogger(time: number){
     const date = new Date(time),
