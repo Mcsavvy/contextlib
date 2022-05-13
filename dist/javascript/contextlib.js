@@ -127,7 +127,7 @@ class ExitStack {
      * @returns A new exit stack containing all exit callbacks from this one*/
     popAll() {
         // preserve the context stack by tranferring the callbacks to a new stack
-        var stack = new ExitStack();
+        const stack = new ExitStack();
         stack._exitCallbacks = this._exitCallbacks;
         this._exitCallbacks = [];
         return stack;
@@ -170,7 +170,7 @@ class GeneratorCM {
         this.gen = gen;
     }
     enter() {
-        var { value, done } = this.gen.next();
+        const { value, done } = this.gen.next();
         if (done) {
             throw Error("Generator did not yield!");
         }
@@ -184,7 +184,7 @@ class GeneratorCM {
         }
         ;
         // clean up
-        var r = this.gen.next();
+        const r = this.gen.next();
         // the generator should be done since it yields only once
         if (!r.done) {
             throw new Error("Generator did not stop!");
@@ -217,7 +217,7 @@ exports.GeneratorCM = GeneratorCM;
  * for func*/
 function contextmanager(func) {
     function helper(...args) {
-        var gen = func(...args);
+        const gen = func(...args);
         return new GeneratorCM(gen);
     }
     Object.defineProperty(helper, 'name', { value: func.name || 'generatorcontext' });
@@ -233,7 +233,7 @@ class nullcontext {
 }
 exports.nullcontext = nullcontext;
 function _timelogger(time) {
-    var date = new Date(time), hours = date.getUTCHours().toString().padStart(2, '0'), minutes = date.getUTCMinutes().toString().padStart(2, '0'), seconds = date.getUTCSeconds().toString().padStart(2, '0'), milliseconds = date.getUTCMilliseconds().toString().padStart(3, '0');
+    const date = new Date(time), hours = date.getUTCHours().toString().padStart(2, '0'), minutes = date.getUTCMinutes().toString().padStart(2, '0'), seconds = date.getUTCSeconds().toString().padStart(2, '0'), milliseconds = date.getUTCMilliseconds().toString().padStart(3, '0');
     console.log(`Elapsed Time: ${hours}:${minutes}:${seconds}:${milliseconds}`);
 }
 /**
@@ -253,7 +253,7 @@ function _timelogger(time) {
  * the time in this format `HH:MM:SS:mmm`
  */
 const timed = contextmanager(function* (logger = _timelogger) {
-    var start = Date.now();
+    let start = Date.now();
     try {
         start = Date.now();
         yield;
@@ -272,7 +272,7 @@ exports.timed = timed;
  * ```
  * @param thing any object that has a `close` method.
  */
-var closing = contextmanager(function* closing(thing) {
+const closing = contextmanager(function* closing(thing) {
     try {
         yield thing;
     }
@@ -295,12 +295,12 @@ exports.closing = closing;
  * ```
  * @param errors Error classes e.g: (`TypeError`, `SyntaxError`, `CustomError`)
  */
-var suppress = contextmanager(function* suppress(...errors) {
+const suppress = contextmanager(function* suppress(...errors) {
     try {
         yield;
     }
     catch (error) {
-        for (var i = 0; i < errors.length; i++) {
+        for (let i = 0; i < errors.length; i++) {
             if (error instanceof errors[i]) {
                 return;
             }

@@ -1,10 +1,10 @@
 import {contextmanager, With, ContextManagerBase, ExitStack, suppress, timed, closing} from '../src/contextlib'
 
 test("Generator contextmanagers must yield once", () => {
-    var nonYieldingGeneratorCM = contextmanager(function*(){
+    const nonYieldingGeneratorCM = contextmanager(function*(){
 
     });
-    var multiYieldingGeneratorCM = contextmanager(function*(){
+    const multiYieldingGeneratorCM = contextmanager(function*(){
         yield 1;
         yield 2;
     })
@@ -21,7 +21,7 @@ test("Generator contextmanagers must yield once", () => {
 
 
 test("Once an exitstack exits, all callbacks would be called in the reverse order", ()=>{
-    var log = jest.fn(console.log);
+    const log = jest.fn(console.log);
     With(new ExitStack(), exitstack => {
         exitstack.callback(() => log("first"))
         exitstack.callback(() => log("second"))
@@ -34,14 +34,14 @@ test("Once an exitstack exits, all callbacks would be called in the reverse orde
 
 
 test(`When multiple errors occur in an exitstack, the last error would be thrown`, () => {
-    var buggycm = contextmanager(function* buggycm(id: number){
+    const buggycm = contextmanager(function* buggycm(id: number){
         yield id;
-        var msg = `there was an error in contextmanager[${id}]`;
+        const msg = `there was an error in contextmanager[${id}]`;
         console.warn('Throwing: %s', msg);
         throw new Error(msg);
     });
-    var exitstack = new ExitStack();
-    for (var i=1; i <= 3; i++) {
+    const exitstack = new ExitStack();
+    for (let i=1; i <= 3; i++) {
         exitstack.enterContext(buggycm(i))
     };
     expect(()=>{
@@ -51,7 +51,7 @@ test(`When multiple errors occur in an exitstack, the last error would be thrown
 })
 
 test('Any error in a context body would be thrown in the context manager', () => {
-    var cm = contextmanager(function* () {
+    const cm = contextmanager(function* () {
         let error: Error | undefined;
         try {
             yield;
@@ -77,7 +77,7 @@ test('Any error in the context body would be suppressed if the cm\'s exit method
     }).not.toThrowError();
 
     // you can also use a generator cm
-    var truthycm_ = contextmanager(function*(){
+    const truthycm_ = contextmanager(function*(){
         try {
             yield
         } finally {
@@ -101,8 +101,8 @@ test("suppress", ()=>{
 })
 
 test("timed", ()=> {
-    var timelogger = jest.fn((time: number) => {
-        var date = new Date(time),
+    const timelogger = jest.fn((time: number) => {
+        const date = new Date(time),
             hours = date.getUTCHours().toString().padStart(2, '0'),
             minutes = date.getUTCMinutes().toString().padStart(2, '0'),
             seconds = date.getUTCSeconds().toString().padStart(2, '0'),
@@ -115,8 +115,8 @@ test("timed", ()=> {
 })
 
 test("closing", ()=>{
-    var close = jest.fn();
-    var closingThing = {
+    const close = jest.fn();
+    const closingThing = {
         close: function(){
             close()
         }

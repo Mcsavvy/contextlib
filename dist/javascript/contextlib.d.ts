@@ -207,7 +207,11 @@ declare const timed: (args_0: (arg_0: number) => any) => GeneratorCM<void>;
  * ```
  * @param thing any object that has a `close` method.
  */
-declare var closing: (thing: any) => GeneratorCM<any>;
+declare const closing: (thing: {
+    close: (args_0?: any) => void;
+}) => GeneratorCM<{
+    close: (args_0?: any) => void;
+}>;
 /**
  * Context manager used to suppress specific errors.
  *
@@ -222,7 +226,7 @@ declare var closing: (thing: any) => GeneratorCM<any>;
  * ```
  * @param errors Error classes e.g: (`TypeError`, `SyntaxError`, `CustomError`)
  */
-declare var suppress: (...args: ErrorConstructor[]) => GeneratorCM<undefined>;
+declare const suppress: (...args: ErrorConstructor[]) => GeneratorCM<undefined>;
 export { With, ContextManagerBase, ExitStack, GeneratorCM, contextmanager, nullcontext, timed, suppress, closing };
 export default With;
 export { enter, exit, genFunc, gen, ContextManager };

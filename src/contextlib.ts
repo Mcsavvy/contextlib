@@ -183,7 +183,7 @@ class ExitStack implements ContextManager<ExitStack> {
      * @returns A new exit stack containing all exit callbacks from this one*/
     popAll(): ExitStack {
         // preserve the context stack by tranferring the callbacks to a new stack
-        var stack = new ExitStack();
+        const stack = new ExitStack();
         stack._exitCallbacks = this._exitCallbacks;
         this._exitCallbacks = [];
         return stack
@@ -230,7 +230,7 @@ class ExitStack implements ContextManager<ExitStack> {
     }
 
     enter(): T {
-        var {value, done} = this.gen.next()
+        const {value, done} = this.gen.next()
         if (done) {
             throw Error("Generator did not yield!")
         }; return value;
@@ -241,7 +241,7 @@ class ExitStack implements ContextManager<ExitStack> {
             // reraise the error inside the generator
         };
         // clean up
-        var r = this.gen.next();
+        const r = this.gen.next();
         // the generator should be done since it yields only once
         if (!r.done) { throw new Error("Generator did not stop!") }
         // alway return true to suppress the error
@@ -273,7 +273,7 @@ class ExitStack implements ContextManager<ExitStack> {
  * for func*/
 function contextmanager<T,Y extends any[]>(func: genFunc<T,Y>): (...args: Y) => GeneratorCM<T> {
     function helper(...args: Y){
-        var gen = func(...args)
+        const gen = func(...args)
         return new GeneratorCM<T>(gen)
     }
     Object.defineProperty(helper, 'name', {value: func.name||'generatorcontext'})
@@ -288,7 +288,7 @@ function contextmanager<T,Y extends any[]>(func: genFunc<T,Y>): (...args: Y) => 
     exit(error?: ErrorType): void {  }
 }
 function _timelogger(time: number){
-    var date = new Date(time),
+    const date = new Date(time),
         hours = date.getUTCHours().toString().padStart(2, '0'),
         minutes = date.getUTCMinutes().toString().padStart(2, '0'),
         seconds = date.getUTCSeconds().toString().padStart(2, '0'),
@@ -313,7 +313,7 @@ function _timelogger(time: number){
  * the time in this format `HH:MM:SS:mmm`
  */
 const timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger=_timelogger){
-    var start: number = Date.now();
+    let start: number = Date.now();
     try {
         start = Date.now();
         yield;
@@ -332,8 +332,8 @@ const timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger
  * ```
  * @param thing any object that has a `close` method.
  */
-var closing = contextmanager(function* closing(thing: any){
-    try{
+const closing = contextmanager(function* closing(thing: { close: (...args: [any?]) => void }) {
+    try {
         yield thing;
     } finally {
         thing.close()
@@ -354,11 +354,11 @@ var closing = contextmanager(function* closing(thing: any){
  * ```
  * @param errors Error classes e.g: (`TypeError`, `SyntaxError`, `CustomError`)
  */
-var suppress = contextmanager(function* suppress(...errors: (typeof Error)[]){
+const suppress = contextmanager(function* suppress(...errors: (typeof Error)[]){
     try {
         yield
     } catch (error) {
-        for(var i=0; i < errors.length; i++){
+        for (let i = 0; i < errors.length; i++) {
             if (error instanceof errors[i]){
                 return
             }
