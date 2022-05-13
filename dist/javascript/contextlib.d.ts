@@ -93,17 +93,17 @@ declare class ExitStack implements ContextManager<ExitStack> {
     _exitCallbacks: Function[];
     constructor();
     enter(): ExitStack;
-    exit(error?: any): any;
+    exit(error?: unknown): boolean;
     /**
      * Add a regular callback to the ExitStack.
      * @param cb a regular callback*/
-    callback(cb: Function): void;
+    callback(cb: (err?: unknown) => unknown): void;
     /**
      * Add a context manager to the ExitStack. The context manager's
      * `exit()` method will be called with the arguments given to the
      * ExitStack's exit() method.
      * @param cm a context manager*/
-    push(cm: ContextManager<any>): void;
+    push(cm: ContextManager): void;
     /**
      * Enter another context manager and return the result of it's 'enter' method.
      * The context manager's `exit()` method will be called with the

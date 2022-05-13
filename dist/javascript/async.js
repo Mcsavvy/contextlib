@@ -76,21 +76,25 @@ class ExitStack {
     }
     exit(error) {
         return __awaiter(this, arguments, void 0, function* () {
+            const hasError = arguments.length !== 0;
             let suppressed = false;
             let pendingRaise = false;
+            // callbacks are invoked in LIFO order to match the behaviour of
+            // nested context managers
             while (true) {
                 const cb = this._exitCallbacks.pop();
                 if (cb === undefined) {
                     break;
                 }
                 try {
-                    if (yield cb(error)) {
+                    if (!pendingRaise && (suppressed || !hasError) ? yield cb() : yield cb(error)) {
                         suppressed = true;
                         pendingRaise = false;
                         error = undefined;
                     }
                 }
                 catch (e) {
+                    suppressed = false;
                     pendingRaise = true;
                     error = error || e;
                 }
@@ -98,7 +102,7 @@ class ExitStack {
             if (pendingRaise) {
                 throw error;
             }
-            return arguments.length !== 0 && suppressed;
+            return hasError && suppressed;
         });
     }
     callback(cb) {

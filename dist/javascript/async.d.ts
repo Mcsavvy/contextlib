@@ -3,13 +3,13 @@ import { Result as WithResult } from './with';
  * An async variant (and superset) of ContextManager<T>.
  */
 export interface ContextManager<T = unknown> {
-    enter: () => Promise<T> | T;
+    enter: () => PromiseLike<T> | T;
     exit: (err?: unknown) => unknown;
 }
 /**
  * An async implementation of With.
  */
-export declare function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => Promise<R>): Promise<WithResult<R>>;
+export declare function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => PromiseLike<R> | R): Promise<WithResult<R>>;
 /**
  * An async implementation of Use.
  * It differs in that, due to the limitations of JS generators, exit will not

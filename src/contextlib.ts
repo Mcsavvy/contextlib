@@ -132,7 +132,8 @@ class ExitStack implements ContextManager<ExitStack> {
         return this
     }
 
-    exit(error?: any): any {
+    exit(error?: unknown): boolean {
+        const hasError = arguments.length !== 0
         let suppressed = false
         let pendingRaise = false
         // callbacks are invoked in LIFO order to match the behaviour of
@@ -143,26 +144,27 @@ class ExitStack implements ContextManager<ExitStack> {
                 break
             }
             try {
-                if (cb(error)) {
-                    suppressed = true;
-                    pendingRaise = false;
-                    error = undefined;
+                if (!pendingRaise && (suppressed || !hasError) ? cb() : cb(error)) {
+                    suppressed = true
+                    pendingRaise = false
+                    error = undefined
                 }
             } catch (e) {
-                pendingRaise = true;
+                suppressed = false
+                pendingRaise = true
                 error = error || e
             }
         }
         if (pendingRaise) {
             throw error
         }
-        return arguments.length !== 0 && suppressed
+        return hasError && suppressed
     }
 
     /**
      * Add a regular callback to the ExitStack.
      * @param cb a regular callback*/
-    callback(cb: Function) {
+    callback(cb: (err?: unknown) => unknown) {
         this._exitCallbacks.push(cb)
     }
 
@@ -171,7 +173,7 @@ class ExitStack implements ContextManager<ExitStack> {
      * `exit()` method will be called with the arguments given to the
      * ExitStack's exit() method.
      * @param cm a context manager*/
-    push(cm: ContextManager<any>) {
+    push(cm: ContextManager) {
         this.callback(cm.exit.bind(cm))
     }
 

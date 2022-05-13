@@ -85,6 +85,7 @@ class ExitStack {
         return this;
     }
     exit(error) {
+        const hasError = arguments.length !== 0;
         let suppressed = false;
         let pendingRaise = false;
         // callbacks are invoked in LIFO order to match the behaviour of
@@ -95,13 +96,14 @@ class ExitStack {
                 break;
             }
             try {
-                if (cb(error)) {
+                if (!pendingRaise && (suppressed || !hasError) ? cb() : cb(error)) {
                     suppressed = true;
                     pendingRaise = false;
                     error = undefined;
                 }
             }
             catch (e) {
+                suppressed = false;
                 pendingRaise = true;
                 error = error || e;
             }
@@ -109,7 +111,7 @@ class ExitStack {
         if (pendingRaise) {
             throw error;
         }
-        return arguments.length !== 0 && suppressed;
+        return hasError && suppressed;
     }
     /**
      * Add a regular callback to the ExitStack.

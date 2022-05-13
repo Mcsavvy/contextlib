@@ -4,14 +4,14 @@ import {Result as WithResult, Success as WithSuccess} from './with'
  * An async variant (and superset) of ContextManager<T>.
  */
 export interface ContextManager<T = unknown> {
-    enter: () => Promise<T> | T
+    enter: () => PromiseLike<T> | T
     exit: (err?: unknown) => unknown
 }
 
 /**
  * An async implementation of With.
  */
-export async function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => Promise<R>): Promise<WithResult<R>> {
+export async function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => PromiseLike<R> | R): Promise<WithResult<R>> {
     const val = await manager.enter()
     let result: WithSuccess<R> | undefined
     try {
@@ -59,28 +59,32 @@ export class ExitStack implements ContextManager<ExitStack> {
     }
 
     async exit(error?: unknown): Promise<boolean> {
+        const hasError = arguments.length !== 0
         let suppressed = false
         let pendingRaise = false
+        // callbacks are invoked in LIFO order to match the behaviour of
+        // nested context managers
         while (true) {
             const cb = this._exitCallbacks.pop()
             if (cb === undefined) {
                 break
             }
             try {
-                if (await cb(error)) {
+                if (!pendingRaise && (suppressed || !hasError) ? await cb() : await cb(error)) {
                     suppressed = true
                     pendingRaise = false
                     error = undefined
                 }
             } catch (e) {
-                pendingRaise = true;
+                suppressed = false
+                pendingRaise = true
                 error = error || e
             }
         }
         if (pendingRaise) {
             throw error
         }
-        return arguments.length !== 0 && suppressed
+        return hasError && suppressed
     }
 
     callback(cb: (error?: unknown) => unknown) {

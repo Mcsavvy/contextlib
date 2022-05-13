@@ -26,7 +26,6 @@ test("Generator contextmanagers must yield once", () => {
     }).toThrow("Generator did not stop!")
 })
 
-
 test("Once an exitstack exits, all callbacks would be called in the reverse order", ()=>{
     const log = jest.fn(console.log);
     With(new ExitStack(), exitstack => {
@@ -192,6 +191,109 @@ describe('Use', () => {
             6,
             3,
             8
+        ])
+    })
+})
+
+describe('ExitStack', () => {
+    test('suppressed called with error', () => {
+        const es = new ExitStack()
+        es.callback(() => true)
+        expect(es._exitCallbacks).toHaveLength(1)
+        expect(es.exit(undefined)).toStrictEqual(true)
+        expect(es._exitCallbacks).toHaveLength(0)
+    })
+    test('suppressed called without error', () => {
+        const es = new ExitStack()
+        es.callback(() => true)
+        expect(es._exitCallbacks).toHaveLength(1)
+        expect(es.exit()).toStrictEqual(false)
+        expect(es._exitCallbacks).toHaveLength(0)
+    })
+    test('higher nested cm can swallow errors from lower ones', () => {
+        const es = new ExitStack()
+        const out: any[] = []
+        es.callback(function() {
+            out.push(14)
+            expect(arguments).toHaveLength(0)
+            out.push(15)
+        })
+        es.callback(err => {
+            out.push(12)
+            expect(err).toStrictEqual(11)
+            out.push(13)
+            return true
+        })
+        es.callback(function() {
+            out.push(9)
+            expect(arguments).toHaveLength(0)
+            out.push(10)
+            throw 11
+        })
+        es.callback(err => {
+            out.push(7)
+            expect(err).toStrictEqual(1)
+            out.push(8)
+            // suppress
+            return true
+        })
+        es.callback(err => {
+            out.push(4)
+            expect(err).toStrictEqual(1)
+            out.push(5)
+            throw 6
+        })
+        es.callback(err => {
+            out.push(2)
+            expect(err).toStrictEqual(1)
+            out.push(3)
+            return false
+        })
+        expect(es.exit(1)).toStrictEqual(true)
+        expect(out).toStrictEqual([
+            2,
+            3,
+            4,
+            5,
+            7,
+            8,
+            9,
+            10,
+            12,
+            13,
+            14,
+            15
+        ])
+    })
+    test('error swallowing w/o having passed in an error wont return true', () => {
+        const es = new ExitStack()
+        const out: any[] = []
+        es.callback(err => {
+            out.push(6)
+            expect(err).toStrictEqual(3)
+            out.push(7)
+            return true
+        })
+        es.callback(err => {
+            out.push(4)
+            expect(err).toStrictEqual(3)
+            out.push(5)
+            return false
+        })
+        es.callback(function () {
+            out.push(1)
+            expect(arguments).toHaveLength(0)
+            out.push(2)
+            throw 3
+        })
+        expect(es.exit()).toStrictEqual(false)
+        expect(out).toStrictEqual([
+            1,
+            2,
+            4,
+            5,
+            6,
+            7
         ])
     })
 })
