@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "build": "tsc -b",
-    "clean": "rimraf dist"
+    "clean": "rimraf coverage node_modules",
+    "distclean": "rimraf dist"
   },
   "repository": {
     "type": "git",
