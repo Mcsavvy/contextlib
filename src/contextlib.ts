@@ -133,9 +133,8 @@ class ExitStack implements ContextManager<ExitStack> {
     }
 
     exit(error?: any): any {
-        let suppressed: boolean = false
-        let pendingRaise: boolean = false
-
+        let suppressed = false
+        let pendingRaise = false
         // callbacks are invoked in LIFO order to match the behaviour of
         // nested context managers
         while (true) {
@@ -182,8 +181,9 @@ class ExitStack implements ContextManager<ExitStack> {
      * arguments given to the ExitStack's exit() method.
      * @param cm a context manager*/
     enterContext<T>(cm: ContextManager<T>): T {
+        const result = cm.enter()
         this.push(cm)
-        return cm.enter()
+        return result
     }
 
     /**

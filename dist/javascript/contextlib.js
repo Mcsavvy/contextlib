@@ -131,8 +131,9 @@ class ExitStack {
      * arguments given to the ExitStack's exit() method.
      * @param cm a context manager*/
     enterContext(cm) {
+        const result = cm.enter();
         this.push(cm);
-        return cm.enter();
+        return result;
     }
     /**
      * Remove all context managers from the ExitStack and return a new ExitStack containing
