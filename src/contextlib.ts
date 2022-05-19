@@ -350,6 +350,7 @@ const timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger
 function closing(thing: { close: () => unknown }): ContextManager {
     return {
         enter: () => thing,
+        // eslint-disable-next-line @typescript-eslint/promise-function-async
         exit: () => Promise.resolve(thing.close())
     }
 }

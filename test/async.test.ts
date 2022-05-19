@@ -50,6 +50,7 @@ describe('With', () => {
                 await new Promise((resolve) => setTimeout(resolve, 50))
                 return 2
             },
+            // eslint-disable-next-line @typescript-eslint/promise-function-async
             exit: function (v) {
                 expect(v).toStrictEqual(7)
                 expect(arguments).toHaveLength(1)

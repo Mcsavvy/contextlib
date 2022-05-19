@@ -302,6 +302,7 @@ describe('closing', () => {
     test('async close', async () => {
         const out: unknown[] = []
         const closer = {
+            // eslint-disable-next-line @typescript-eslint/promise-function-async
             close: () => {
                 out.push(1)
                 return new Promise((resolve) => setTimeout(resolve, 100)).then(() => {

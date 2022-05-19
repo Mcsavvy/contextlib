@@ -296,6 +296,7 @@ exports.timed = timed;
 function closing(thing) {
     return {
         enter: () => thing,
+        // eslint-disable-next-line @typescript-eslint/promise-function-async
         exit: () => Promise.resolve(thing.close())
     };
 }
