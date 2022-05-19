@@ -347,7 +347,7 @@ const timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger
  *
  * @param thing any object that has a `close` method.
  */
-function closing(thing: { close: () => unknown }): ContextManager {
+function closing<T>(thing: T & { close: () => unknown }): ContextManager<T> {
     return {
         enter: () => thing,
         // eslint-disable-next-line @typescript-eslint/promise-function-async

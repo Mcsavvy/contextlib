@@ -213,9 +213,9 @@ declare const timed: (args_0: (arg_0: number) => any) => GeneratorCM<void>;
  *
  * @param thing any object that has a `close` method.
  */
-declare function closing(thing: {
+declare function closing<T>(thing: T & {
     close: () => unknown;
-}): ContextManager;
+}): ContextManager<T>;
 /**
  * Context manager used to suppress specific errors.
  *
