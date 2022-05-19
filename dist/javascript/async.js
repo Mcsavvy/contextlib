@@ -33,7 +33,7 @@ function With(manager, body) {
             result = { result: yield body(val) };
         }
         catch (error) {
-            if (!(yield manager.exit(error))) {
+            if ((yield manager.exit(error)) !== true) {
                 throw error;
             }
             return {
@@ -87,7 +87,8 @@ class ExitStack {
                     break;
                 }
                 try {
-                    if (!pendingRaise && (suppressed || !hasError) ? yield cb() : yield cb(error)) {
+                    const cbResult = !pendingRaise && (suppressed || !hasError) ? yield cb() : yield cb(error);
+                    if (cbResult === true) {
                         suppressed = true;
                         pendingRaise = false;
                         error = undefined;

@@ -17,7 +17,7 @@ export async function With<T, R = unknown>(manager: ContextManager<T>, body: (va
     try {
         result = {result: await body(val)}
     } catch (error) {
-        if (!await manager.exit(error)) {
+        if (await manager.exit(error) !== true) {
             throw error
         }
         return {
@@ -70,7 +70,8 @@ export class ExitStack implements ContextManager<ExitStack> {
                 break
             }
             try {
-                if (!pendingRaise && (suppressed || !hasError) ? await cb() : await cb(error)) {
+                const cbResult = !pendingRaise && (suppressed || !hasError) ? await cb() : await cb(error)
+                if (cbResult === true) {
                     suppressed = true
                     pendingRaise = false
                     error = undefined

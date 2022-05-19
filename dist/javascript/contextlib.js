@@ -20,7 +20,7 @@ function With(manager, body) {
         result = { result: body(val) };
     }
     catch (error) {
-        if (!manager.exit(error)) {
+        if (manager.exit(error) !== true) {
             throw error;
         }
         return {
@@ -96,7 +96,8 @@ class ExitStack {
                 break;
             }
             try {
-                if (!pendingRaise && (suppressed || !hasError) ? cb() : cb(error)) {
+                const cbResult = !pendingRaise && (suppressed || !hasError) ? cb() : cb(error);
+                if (cbResult === true) {
                     suppressed = true;
                     pendingRaise = false;
                     error = undefined;
@@ -279,23 +280,25 @@ const timed = contextmanager(function* (logger = _timelogger) {
     }
 });
 exports.timed = timed;
-/**Context manager that automatically closes something at the end of the body
+/**
+ * Context manager that automatically closes something at the end of the body.
+ *
+ * Usable with async closers.
  *
  * ```
  * With(closing(<closeable>), closeable => {
  *  // do something with <closeable>
  * })
  * ```
+ *
  * @param thing any object that has a `close` method.
  */
-const closing = contextmanager(function* closing(thing) {
-    try {
-        yield thing;
-    }
-    finally {
-        thing.close();
-    }
-});
+function closing(thing) {
+    return {
+        enter: () => thing,
+        exit: () => Promise.resolve(thing.close())
+    };
+}
 exports.closing = closing;
 /**
  * Context manager used to suppress specific errors.

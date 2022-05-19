@@ -200,20 +200,22 @@ declare class nullcontext implements ContextManager<void> {
  * the time in this format `HH:MM:SS:mmm`
  */
 declare const timed: (args_0: (arg_0: number) => any) => GeneratorCM<void>;
-/**Context manager that automatically closes something at the end of the body
+/**
+ * Context manager that automatically closes something at the end of the body.
+ *
+ * Usable with async closers.
  *
  * ```
  * With(closing(<closeable>), closeable => {
  *  // do something with <closeable>
  * })
  * ```
+ *
  * @param thing any object that has a `close` method.
  */
-declare const closing: (thing: {
-    close: (args_0?: any) => void;
-}) => GeneratorCM<{
-    close: (args_0?: any) => void;
-}>;
+declare function closing(thing: {
+    close: () => unknown;
+}): ContextManager;
 /**
  * Context manager used to suppress specific errors.
  *

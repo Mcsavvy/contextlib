@@ -297,3 +297,27 @@ describe('ExitStack', () => {
         ])
     })
 })
+
+describe('closing', () => {
+    test('async close', async () => {
+        const out: unknown[] = []
+        const closer = {
+            close: () => {
+                out.push(1)
+                return new Promise((resolve) => setTimeout(resolve, 100)).then(() => {
+                    out.push(2)
+                    return 3
+                })
+            },
+            wat: () => 4
+        }
+        const cm = closing(closer)
+        const val = cm.enter()
+        expect(val).toBe(closer)
+        expect(out).toStrictEqual([])
+        const p = cm.exit()
+        expect(out.splice(0, out.length)).toStrictEqual([1])
+        expect(await p).toStrictEqual(3)
+        expect(out.splice(0, out.length)).toStrictEqual([2])
+    })
+})

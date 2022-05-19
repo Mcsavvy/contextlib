@@ -1,6 +1,83 @@
 import {Use, ExitStack, With} from '../src/async'
 import {contextmanager} from "../src";
 
+describe('With', () => {
+    test('error', async () => {
+        const out: any[] = []
+        await (async () => {
+            try {
+                await With({
+                    enter: async function () {
+                        expect(arguments).toHaveLength(0)
+                        out.push(1)
+                        await new Promise((resolve) => setTimeout(resolve, 50))
+                        return 2
+                    },
+                    exit: function (v) {
+                        expect(v).toStrictEqual(7)
+                        expect(arguments).toHaveLength(1)
+                        out.push(3)
+                        return 4
+                    }
+                }, async (v) => {
+                    expect(v).toStrictEqual(2)
+                    out.push(5)
+                    await new Promise((resolve) => setTimeout(resolve, 50))
+                    out.push(6)
+                    throw 7
+                })
+            } catch (e) {
+                out.push(8)
+                expect(e).toStrictEqual(7)
+                return
+            }
+            expect('didnt throw error').toEqual('threw error')
+        })()
+        expect(out).toStrictEqual([
+            1,
+            5,
+            6,
+            3,
+            8
+        ])
+    })
+    test('error suppressed', async () => {
+        const out: any[] = []
+        const result = await With({
+            enter: async function () {
+                expect(arguments).toHaveLength(0)
+                out.push(1)
+                await new Promise((resolve) => setTimeout(resolve, 50))
+                return 2
+            },
+            exit: function (v) {
+                expect(v).toStrictEqual(7)
+                expect(arguments).toHaveLength(1)
+                out.push(3)
+                return new Promise((resolve) => setTimeout(resolve, 100)).then(() => {
+                    out.push(4)
+                    return true
+                })
+            }
+        }, async (v) => {
+            expect(v).toStrictEqual(2)
+            out.push(5)
+            await new Promise((resolve) => setTimeout(resolve, 50))
+            out.push(6)
+            throw 7
+        })
+        expect(result.suppressed).toStrictEqual(true)
+        expect(result.suppressed ? result.error : result.result).toStrictEqual(7)
+        expect(out).toStrictEqual([
+            1,
+            5,
+            6,
+            3,
+            4
+        ])
+    })
+})
+
 describe('Use', () => {
     test('success', async () => {
         const out: any[] = []

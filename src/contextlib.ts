@@ -64,7 +64,7 @@ function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => R): 
     try {
         result = {result: body(val)}
     } catch (error) {
-        if (!manager.exit(error)) {
+        if (manager.exit(error) !== true) {
             throw error
         }
         return {
@@ -144,7 +144,8 @@ class ExitStack implements ContextManager<ExitStack> {
                 break
             }
             try {
-                if (!pendingRaise && (suppressed || !hasError) ? cb() : cb(error)) {
+                const cbResult = !pendingRaise && (suppressed || !hasError) ? cb() : cb(error)
+                if (cbResult === true) {
                     suppressed = true
                     pendingRaise = false
                     error = undefined
@@ -333,22 +334,25 @@ const timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger
     }
 });
 
-/**Context manager that automatically closes something at the end of the body
+/**
+ * Context manager that automatically closes something at the end of the body.
+ *
+ * Usable with async closers.
  *
  * ```
  * With(closing(<closeable>), closeable => {
  *  // do something with <closeable>
  * })
  * ```
+ *
  * @param thing any object that has a `close` method.
  */
-const closing = contextmanager(function* closing(thing: { close: (...args: [any?]) => void }) {
-    try {
-        yield thing;
-    } finally {
-        thing.close()
+function closing(thing: { close: () => unknown }): ContextManager {
+    return {
+        enter: () => thing,
+        exit: () => Promise.resolve(thing.close())
     }
-})
+}
 
 /**
  * Context manager used to suppress specific errors.
