@@ -90,10 +90,10 @@ class ExitStack {
         let pendingRaise = false;
         // callbacks are invoked in LIFO order to match the behaviour of
         // nested context managers
-        while (true) {
+        while (this._exitCallbacks.length !== 0) {
             const cb = this._exitCallbacks.pop();
             if (cb === undefined) {
-                break;
+                continue;
             }
             try {
                 const cbResult = !pendingRaise && (suppressed || !hasError) ? cb() : cb(error);
