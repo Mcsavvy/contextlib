@@ -1,16 +1,18 @@
 import { Result as WithResult } from './with';
+/**@alias Error */
+declare type ErrorType = Error;
 /**this function is called whe the context is being left
  * if an error is throw in the context body, the error
  * is passed to this method. return a true value to suppress
  * the error
  * @deprecated
  */
-declare type exit = (...error: [any?]) => any;
+declare type exit = (...error: [ErrorType?]) => any;
 /**this function is called when the context is entered, the return value is
  * passes to the context body as argument
  * @deprecated
  */
-declare type enter<T> = (...args: [any?]) => T;
+declare type enter<T> = (...args: []) => T;
 /**
  * Context managers are resource managers that allow you
  * to allocate and release resources precisely when you want to.
