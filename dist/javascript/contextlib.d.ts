@@ -36,12 +36,12 @@ interface ContextManager<T = unknown> {
  * A generator
  * @deprecated
  */
-declare type gen<T> = Generator<T>;
+declare type gen<T> = Generator<T, any>;
 /**
  * This function yield a generator when called with <args>?
  * @deprecated
  */
-declare type genFunc<T, Y extends any[]> = (...args: Y) => Generator<T>;
+declare type genFunc<T, Y extends any[]> = (...args: Y) => gen<T>;
 /**
  * The With function manages context, it enters the given context on invocation
  * and exits the context on return.

@@ -41,13 +41,13 @@ interface ContextManager<T = unknown> {
  * A generator
  * @deprecated
  */
-type gen<T> = Generator<T>
+type gen<T> = Generator<T, any>
 
 /**
  * This function yield a generator when called with <args>?
  * @deprecated
  */
-type genFunc<T, Y extends any[]> = (...args: Y) => Generator<T>
+type genFunc<T, Y extends any[]> = (...args: Y) => gen<T>
 
 /**
  * The With function manages context, it enters the given context on invocation
