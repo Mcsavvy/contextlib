@@ -1,5 +1,8 @@
 import { Result as WithResult } from './with';
-/**@alias Error */
+/**
+ * @alias Error
+ * @deprecated
+ */
 declare type ErrorType = Error;
 /**this function is called whe the context is being left
  * if an error is throw in the context body, the error

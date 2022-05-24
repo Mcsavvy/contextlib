@@ -1,6 +1,9 @@
 import {Result as WithResult, Success as WithSuccess} from './with'
 
-/**@alias Error */
+/**
+ * @alias Error
+ * @deprecated
+ */
 type ErrorType = Error;
 
 /**this function is called whe the context is being left
