@@ -382,24 +382,27 @@ const suppress = contextmanager(function* suppress(...errors: ErrorT[]){
     try {
         yield
     } catch (error: any) {
-        for (var x of errors) {
-            // check type of error
-            if (error instanceof Error){
-                if (typeof x.valueOf() === "string"){
-                    return x == error.message? true: false
-                } else if (x.constructor == RegExp){
-                    return x.test(error.message)
-                } else if (typeof x === "function"){
-                    return error instanceof x;
-                } return false
-            } else if (typeof error.valueOf() == "string") {
-                if (typeof x.valueOf() === "string"){
-                    return x == error? true: false
-                } else if (x.constructor == RegExp){
-                    return x.test(error)
-                } return false
-            }
-        };
+        if (function(){
+            for (var x of errors) {
+                // check type of error
+                if (error instanceof Error){
+                    if (typeof x.valueOf() === "string"){
+                        return x == error.message? true: false
+                    } else if (x.constructor == RegExp){
+                        return x.test(error.message)
+                    } else if (typeof x === "function"){
+                        return error instanceof x;
+                    } return false
+                } else if (typeof error.valueOf() == "string") {
+                    if (typeof x.valueOf() === "string"){
+                        return x == error? true: false
+                    } else if (x.constructor == RegExp){
+                        return x.test(error)
+                    } return false
+                }
+            };
+            return false;
+        }() === false) throw error;
         throw error;
     }
 })
