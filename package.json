@@ -1,0 +1,36 @@
+{
+  "name": "contextlib",
+  "version": "1.0.0",
+  "description": "JS implementation of python's context managers. With 💙 { mcsavvy }",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "publish": "npm publish --tag js --access public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mcsavvy/contextlib.git"
+  },
+  "keywords": [
+    "context",
+    "python-with",
+    "context-manager",
+    "context-lib",
+    "with"
+  ],
+  "author": "mcsavvy",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mcsavvy/contextlib/issues"
+  },
+  "homepage": "https://github.com/mcsavvy/contextlib#readme",
+  "devDependencies": {
+    "@babel/core": "^7.17.5",
+    "@babel/preset-env": "^7.16.11",
+    "@types/jest": "^27.4.1",
+    "babel-jest": "^27.5.1"
+  },
+  "dependencies": {
+    "jest": "^27.5.1"
+  }
+}
