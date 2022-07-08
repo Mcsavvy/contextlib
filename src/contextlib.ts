@@ -32,7 +32,7 @@ interface ContextManager<T = unknown> {
      * passes to the context body as argument
      */
     enter: () => T
-    /**this method is called whe the context is being left
+    /**this method is called when the context is being left
      * if an error is throw in the context body, the error
      * is passed to this method. return a true value to suppress
      * the error

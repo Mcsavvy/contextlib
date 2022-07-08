@@ -2,14 +2,16 @@
   "name": "contextlib",
   "version": "1.1.0",
   "description": "JS implementation of python's context managers. With 💙 { mcsavvy }",
-  "main": "contextlib.js",
+  "main": "contextlib.ts",
   "scripts": {
-    "test": "jest",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "build": "tsc -b",
-    "clean": "rimraf coverage node_modules",
-    "distclean": "rimraf dist"
+    "distclean": "rimraf dist",
+    "test": "jest",
+    "coverage:clean": "rimraf coverage",
+    "coverage:open": "coverage/index.html",
+    "publish": "npm publish --tag ts --access public"
   },
   "repository": {
     "type": "git",
@@ -33,10 +35,8 @@
     "@babel/preset-env": "^7.16.11",
     "@babel/preset-typescript": "^7.16.7",
     "@tsconfig/recommended": "^1.0.1",
-    "@types/jest": "^27.4.1",
     "@typescript-eslint/eslint-plugin": "^5.23.0",
     "@typescript-eslint/parser": "^5.23.0",
-    "babel-jest": "^27.5.1",
     "eslint": "^8.15.0",
     "eslint-config-standard-with-typescript": "^21.0.1",
     "eslint-plugin-import": "^2.26.0",
@@ -47,6 +47,12 @@
     "rimraf": "^3.0.2",
     "ts-jest": "^28.0.2",
     "ts-node": "^10.7.0",
-    "typescript": "^4.6.4"
+    "typescript": "^4.6.4",
+    "@types/jest": "^27.4.1",
+    "babel-jest": "^27.5.1"
+  },
+  "dependencies": {
+    "jest": "^27.5.1",
+    "ts-node": "^10.7.0"
   }
 }

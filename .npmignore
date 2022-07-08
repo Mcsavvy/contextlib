@@ -1,0 +1,6 @@
+package-lock.json
+node_modules
+.vscode
+.gitignore
+index.test.d.ts
+index.test.d.ts.map

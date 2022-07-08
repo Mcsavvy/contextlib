@@ -1,4 +1,4 @@
-import * as contextlib from '../src'
+import * as contextlib from '../index'
 
 test('imports', () => {
     expect(typeof contextlib.With).toBe('function')

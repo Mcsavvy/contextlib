@@ -1,5 +1,6 @@
 import {Use, ExitStack, With} from '../src/async'
-import {contextmanager} from "../src";
+import {contextmanager} from "../index";
+import {Success as WithSuccess} from '../src/with'
 
 describe('With', () => {
     test('error', async () => {
@@ -51,7 +52,7 @@ describe('With', () => {
                 return 2
             },
             // eslint-disable-next-line @typescript-eslint/promise-function-async
-            exit: function (v) {
+            exit: async function (v) {
                 expect(v).toStrictEqual(7)
                 expect(arguments).toHaveLength(1)
                 out.push(3)
@@ -68,7 +69,7 @@ describe('With', () => {
             throw 7
         })
         expect(result.suppressed).toStrictEqual(true)
-        expect(result.suppressed ? result.error : result.result).toStrictEqual(7)
+        expect(result.suppressed ? result.error : (result as WithSuccess<any>).result).toStrictEqual(7)
         expect(out).toStrictEqual([
             1,
             5,

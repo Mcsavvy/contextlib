@@ -1,9 +1,17 @@
 {
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "baseUrl": "./src"
-  },
+  "extends": "@tsconfig/recommended/tsconfig.json",
+  "target": "esnext",
+  "module": "esnext",
   "include": [
-    "src/**/*.ts"
-  ]
+    "src",
+    "test",
+    "index.ts"
+  ],
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "outDir": "dist/javascript",
+    "declaration": true,
+    "sourceMap": true
+  },
+  "$schema": "https://json.schemastore.org/tsconfig"
 }
