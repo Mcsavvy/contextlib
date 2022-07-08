@@ -1,62 +1,97 @@
-/**@alias Error */
+import {Result as WithResult, Success as WithSuccess} from './with'
+
+/**
+ * @alias Error
+ * @deprecated
+ */
 type ErrorType = Error;
+
 /**this function is called whe the context is being left
  * if an error is throw in the context body, the error
  * is passed to this method. return a true value to suppress
  * the error
+ * @deprecated
  */
 type exit = (...error: [ErrorType?]) => any;
+
 /**this function is called when the context is entered, the return value is
  * passes to the context body as argument
+ * @deprecated
  */
 type enter<T> = (...args: []) => T;
 
 /**
  * Context managers are resource managers that allow you
  * to allocate and release resources precisely when you want to.
- * 
+ *
  * A context manager can be any class or object, as long
  * as it correctly implemets the 'enter' and 'exit' method
  */
-interface ContextManager<T=any> {
+interface ContextManager<T = unknown> {
     /**this method is called when the context is being entered, the return value is
      * passes to the context body as argument
      */
-    enter: enter<T>;
+    enter: () => T
     /**this method is called whe the context is being left
      * if an error is throw in the context body, the error
      * is passed to this method. return a true value to suppress
      * the error
      */
-    exit: exit;
+    exit: (err?: unknown) => unknown
 }
-/**A generator */
+
+/**
+ * A generator
+ * @deprecated
+ */
 type gen<T> = Generator<T, any>
-/**This function yield a generator when called with <args>? */
+
+/**
+ * This function yield a generator when called with <args>?
+ * @deprecated
+ */
 type genFunc<T, Y extends any[]> = (...args: Y) => gen<T>
-/**This is the body of a context,
- * it accepts the value returned from the contextmanager's
- * 'enter' method*/
-type body<T> = (...args: [T?]) => void
 
 /**
  * The With function manages context, it enters the given context on invocation
  * and exits the context on return.
  * It accepts two arguments, a context manager and a callback.
- * The calback is called with the context manager's return value as argument.
+ * The callback is called with the context manager's return value as argument.
  * If an error is raised in the callback, the context manager's `exit()` method
  * is called with the error as argument.
  * If the context manager's `exit()` method returns true, the error is suppressed.
+ * If the context manager's enter does not raise an error, and no error is raised
+ * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
  * @param body the body function for this context*/
- function With<T>(manager: ContextManager<T>, body: body<T>): void {
-    try { 
-        body(manager.enter());
-        manager.exit();
+function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => R): WithResult<R> {
+    const val = manager.enter()
+    let result: WithSuccess<R> | undefined
+    try {
+        result = {result: body(val)}
+    } catch (error) {
+        if (manager.exit(error) !== true) {
+            throw error
+        }
+        return {
+            error,
+            suppressed: true
+        }
     }
-    catch (e) {
-        var r = manager.exit(e);
-        if (!r) { throw e }
+    manager.exit()
+    return result
+}
+
+/**
+ * Use constructs a generator that may be used to fulfil the same role as With,
+ * though without the suppression or error handling capabilities.
+ */
+function* Use<T>(manager: ContextManager<T>): Generator<T> {
+    const val = manager.enter()
+    try {
+        yield val
+    } finally {
+        manager.exit()
     }
 }
 
@@ -70,18 +105,18 @@ type body<T> = (...args: [T?]) => void
 /**
  * ExitStack is a context manager that manages a stack of context managers.
  * It can be used to manage multiple nested context managers.
- * 
+ *
  * All context managers are entered in the order they are pushed.
  * Their exit methods are called in the reverse order (LIFO).
- * 
+ *
  * When an error is raise in the body of an exit stack or one of its context managers,
  * the error propagates to the next context manager's `exit` method until it is handled.
  * If the error is not handled, it is raised when the ExitStack exits.
- * 
+ *
  * Also, the ExitStack accepts callbacks that are called when the ExitStack exits.
  * These callbacks are invoked with any error raised in the ExitStack's `exit` method,
  * so they can be used to handle errors or clean up resources.
- * 
+ *
  * ```js
  * With(new ExitStack(), exitstack => {
  *   exitstack.enterContext(<contextmanager>)
@@ -91,61 +126,44 @@ type body<T> = (...args: [T?]) => void
  * })
  * ```
  */
- class ExitStack implements ContextManager<ExitStack> {
-     /**An array of all callbacks plus contexts exit methds */
-    _exitCallbacks: exit[]
-
-    /**turn a regular callback to an exit function
-     * @param cb a regular callback
-     * @returns an exit function
-     */
-    private _makeExitWrapper(cb: Function): exit{
-        function helper(error?: ErrorType): any {
-            return cb();
-        }
-        return helper;
-    }
+class ExitStack implements ContextManager<ExitStack> {
+    /**An array of all callbacks plus contexts exit methds */
+    _exitCallbacks: Function[]
 
     constructor() {
         this._exitCallbacks = [];
     }
 
-    enter(): ExitStack { return this; }
-    exit(error?: ErrorType): any {
-        var hasError = error != undefined;
-        var suppressed: boolean = false,
-            pendingRaise: boolean = false,
-            frameErr: ErrorType = error;
+    enter(): ExitStack {
+        return this
+    }
 
+    exit(error?: unknown): boolean {
+        const hasError = arguments.length !== 0
+        let suppressed = false
+        let pendingRaise = false
         // callbacks are invoked in LIFO order to match the behaviour of
         // nested context managers
-        while (this._exitCallbacks.length > 0) {
-            var cb = this._exitCallbacks.pop()
+        while (this._exitCallbacks.length !== 0) {
+            const cb = this._exitCallbacks.pop()
+            if (cb === undefined) {
+                continue
+            }
             try {
-                if (cb(error)){
-                    suppressed = true;
-                    pendingRaise = false;
-                    error = undefined;
+                const cbResult = !pendingRaise && (suppressed || !hasError) ? cb() : cb(error)
+                if (cbResult === true) {
+                    suppressed = true
+                    pendingRaise = false
+                    error = undefined
                 }
-            } catch(e){
-                if (!(e instanceof Error)){
-                    console.log("error is not an Error instance")
-                    e = new Error(e.toString())
-                }
-                var newError = e as Error;
-                pendingRaise = true;
-                error = error || newError
+            } catch (e) {
+                suppressed = false
+                pendingRaise = true
+                error = error || e
             }
         }
         if (pendingRaise) {
             throw error
-            // try {
-            //     var fixedCause = error.cause;
-            //     throw error
-            // } catch (e){
-            //     e.cause = fixedCause;
-            //     throw e as Error
-            // }
         }
         return hasError && suppressed
     }
@@ -153,8 +171,8 @@ type body<T> = (...args: [T?]) => void
     /**
      * Add a regular callback to the ExitStack.
      * @param cb a regular callback*/
-    callback(cb: Function) {
-        this._exitCallbacks.push(this._makeExitWrapper(cb))
+    callback(cb: (err?: unknown) => unknown) {
+        this._exitCallbacks.push(cb)
     }
 
     /**
@@ -162,7 +180,7 @@ type body<T> = (...args: [T?]) => void
      * `exit()` method will be called with the arguments given to the
      * ExitStack's exit() method.
      * @param cm a context manager*/
-    push(cm: ContextManager<any>) {
+    push(cm: ContextManager) {
         this.callback(cm.exit.bind(cm))
     }
 
@@ -172,8 +190,9 @@ type body<T> = (...args: [T?]) => void
      * arguments given to the ExitStack's exit() method.
      * @param cm a context manager*/
     enterContext<T>(cm: ContextManager<T>): T {
+        const result = cm.enter()
         this.push(cm)
-        return cm.enter()
+        return result
     }
 
     /**
@@ -182,7 +201,7 @@ type body<T> = (...args: [T?]) => void
      * @returns A new exit stack containing all exit callbacks from this one*/
     popAll(): ExitStack {
         // preserve the context stack by tranferring the callbacks to a new stack
-        var stack = new ExitStack();
+        const stack = new ExitStack();
         stack._exitCallbacks = this._exitCallbacks;
         this._exitCallbacks = [];
         return stack
@@ -193,15 +212,15 @@ type body<T> = (...args: [T?]) => void
  * GeneratorCM is a context manager that wraps a generator.
  * The generator should yield only once. The value yielded is passed to the
  * body function.
- * 
+ *
  * After the body function returns, the generator is entered again.
  * This time, the generator should clean up.
- * 
+ *
  * If an error is raised in the body function, the error is thrown at the
  * point the generator yielded.
- * 
+ *
  * The preferred way of handling errors is to use a try-finally block.
- * 
+ *
  * ```
  * function* genFn(<args>){
  *   // setup
@@ -214,40 +233,39 @@ type body<T> = (...args: [T?]) => void
  *   }
  * }
  * ```
- * 
+ *
  * NOTE:
  * If the generator does not handle any error raised,
  * the error would be re-raised when the context is exited.
  */
  class GeneratorCM<T> implements ContextManager<T> {
     /**A generator */
-    gen: gen<T>
+    gen: Generator<T>
 
     /**@param gen A generator */
-    constructor(gen: gen<T>) {
+    constructor(gen: Generator<T>) {
         this.gen = gen
     }
 
-    enter(): T { 
-        var {value, done} = this.gen.next()
+    enter(): T {
+        const {value, done} = this.gen.next()
         if (done) {
             throw Error("Generator did not yield!")
         }; return value;
     }
-    exit(error?: ErrorType) {
+    exit(error?: any) {
         if (error) {
             this.gen.throw(error)
             // reraise the error inside the generator
         };
         // clean up
-        var r = this.gen.next();
+        const r = this.gen.next();
         // the generator should be done since it yields only once
         if (!r.done) { throw new Error("Generator did not stop!") }
         // alway return true to suppress the error
         return true
     }
 }
-
 
 /**
  * contextmanager decorator to wrap a generator function and turn
@@ -266,13 +284,13 @@ type body<T> = (...args: [T?]) => void
  * })
  * // generatorcm still needs to be invoked with <args> to get the context manager.
  * var cm = generatorcm(<args>)
- * ``` 
+ * ```
  * @param func a generator function or any function that returns a generator
  * @returns a function that returns a GeneratorCM when called with the argument
  * for func*/
-function contextmanager<T,Y extends any[]>(func: genFunc<T,Y>): (...args: Y) => GeneratorCM<T> {
+function contextmanager<T, Y extends any[]>(func: (...args: Y) => Generator<T>): (...args: Y) => GeneratorCM<T> {
     function helper(...args: Y){
-        var gen = func(...args)
+        const gen = func(...args)
         return new GeneratorCM<T>(gen)
     }
     Object.defineProperty(helper, 'name', {value: func.name||'generatorcontext'})
@@ -284,10 +302,10 @@ function contextmanager<T,Y extends any[]>(func: genFunc<T,Y>): (...args: Y) => 
  * It does not additional processing.*/
  class nullcontext implements ContextManager<void> {
     enter(): void {  }
-    exit(error?: ErrorType): void {  }
+    exit(error?: any): void {  }
 }
 function _timelogger(time: number){
-    var date = new Date(time),
+    const date = new Date(time),
         hours = date.getUTCHours().toString().padStart(2, '0'),
         minutes = date.getUTCMinutes().toString().padStart(2, '0'),
         seconds = date.getUTCSeconds().toString().padStart(2, '0'),
@@ -298,7 +316,7 @@ function _timelogger(time: number){
 /**
  * This is a context manager that keeps track of the time it takes to execute
  * the body of the context.
- * 
+ *
  * #### Typical Usage
  * ```
  * With(timed(), () => {
@@ -311,8 +329,8 @@ function _timelogger(time: number){
  * (in milliseconds). defaults to a timelogger that logs
  * the time in this format `HH:MM:SS:mmm`
  */
-var timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger=_timelogger){
-    var start: number = Date.now();
+const timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger=_timelogger){
+    let start: number = Date.now();
     try {
         start = Date.now();
         yield;
@@ -322,31 +340,33 @@ var timed = contextmanager<void, [(...arg: [number]) => any]>(function*(logger=_
     }
 });
 
-
-
-/**Context manager that automatically closes something at the end of the body
- * 
+/**
+ * Context manager that automatically closes something at the end of the body.
+ *
+ * Usable with async closers.
+ *
  * ```
  * With(closing(<closeable>), closeable => {
  *  // do something with <closeable>
  * })
  * ```
+ *
  * @param thing any object that has a `close` method.
  */
-var closing = contextmanager(function* closing(thing: any){
-    try{
-        yield thing;
-    } finally {
-        thing.close()
+function closing<T>(thing: T & { close: () => unknown }): ContextManager<T> {
+    return {
+        enter: () => thing,
+        // eslint-disable-next-line @typescript-eslint/promise-function-async
+        exit: () => Promise.resolve(thing.close())
     }
-})
+}
 
 /**
  * Context manager used to suppress specific errors.
- * 
+ *
  * After the error is suppressed, execution proceeds with the next statement
  * following the context handler.
- * 
+ *
  * ```
  * With(suppress(TypeError), ()=>{
  *  throw new TypeError
@@ -355,11 +375,11 @@ var closing = contextmanager(function* closing(thing: any){
  * ```
  * @param errors Error classes e.g: (`TypeError`, `SyntaxError`, `CustomError`)
  */
-var suppress = contextmanager(function* suppress(...errors: (typeof Error)[]){
+const suppress = contextmanager(function* suppress(...errors: (typeof Error)[]){
     try {
         yield
     } catch (error) {
-        for(var i=0; i < errors.length; i++){
+        for (let i = 0; i < errors.length; i++) {
             if (error instanceof errors[i]){
                 return
             }
@@ -367,9 +387,9 @@ var suppress = contextmanager(function* suppress(...errors: (typeof Error)[]){
     }
 })
 
-
 export {
     With,
+    Use,
     ContextManagerBase,
     ExitStack,
     GeneratorCM,
