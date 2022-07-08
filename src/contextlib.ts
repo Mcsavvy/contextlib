@@ -361,29 +361,46 @@ function closing<T>(thing: T & { close: () => unknown }): ContextManager<T> {
     }
 }
 
+// currently supported error type for suppress context manager
+type ErrorT = RegExp | string | typeof Error
+
 /**
- * Context manager used to suppress specific errors.
+ * Context manager used to errors based on type and message.
  *
  * After the error is suppressed, execution proceeds with the next statement
  * following the context handler.
  *
  * ```
- * With(suppress(TypeError), ()=>{
+ * With(suppress(ErrorT), function(){
  *  throw new TypeError
  * })
  * // execution stills resumes here
  * ```
- * @param errors Error classes e.g: (`TypeError`, `SyntaxError`, `CustomError`)
+ * @param errors ErrorType: String, ErrorConstructor or RegExp
  */
-const suppress = contextmanager(function* suppress(...errors: (typeof Error)[]){
+const suppress = contextmanager(function* suppress(...errors: ErrorT[]){
     try {
         yield
-    } catch (error) {
-        for (let i = 0; i < errors.length; i++) {
-            if (error instanceof errors[i]){
-                return
+    } catch (error: any) {
+        for (var x of errors) {
+            // check type of error
+            if (error instanceof Error){
+                if (typeof x.valueOf() === "string"){
+                    return x == error.message? true: false
+                } else if (x.constructor == RegExp){
+                    return x.test(error.message)
+                } else if (typeof x === "function"){
+                    return error instanceof x;
+                } return false
+            } else if (typeof error.valueOf() == "string") {
+                if (typeof x.valueOf() === "string"){
+                    return x == error? true: false
+                } else if (x.constructor == RegExp){
+                    return x.test(error)
+                } return false
             }
-        }; throw error;
+        };
+        throw error;
     }
 })
 
