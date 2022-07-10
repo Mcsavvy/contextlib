@@ -103,9 +103,30 @@ function* Use<T>(manager: ContextManager<T>): Generator<T> {
 }
 
 /**
- * A base class for ExitStack and AsyncExitStack
+ * ExitStack is a context manager that manages a stack of context managers.
+ * It can be used to manage multiple nested context managers.
+ *
+ * All context managers are entered in the order they are pushed.
+ * Their exit methods are called in the reverse order (LIFO).
+ *
+ * When an error is raise in the body of an exit stack or one of its context managers,
+ * the error propagates to the next context manager's `exit` method until it is handled.
+ * If the error is not handled, it is raised when the ExitStack exits.
+ *
+ * Also, the ExitStack accepts callbacks that are called when the ExitStack exits.
+ * These callbacks are invoked with any error raised in the ExitStack's `exit` method,
+ * so they can be used to handle errors or clean up resources.
+ *
+ * ```js
+ * With(new ExitStack(), exitstack => {
+ *   exitstack.enterContext(<contextmanager>)
+ *   exitstack.push(<exitmethod>)
+ *   exitstack.callback(<callback>)
+ *   // on exit, the exitstack will invoke these in reverse order
+ * })
+ * ```
  */
-class _BaseExitStack {
+class ExitStack implements ContextManager<ExitStack> {
     /**An array of all callbacks plus contexts exit methods */
     _exitCallbacks: [boolean, Function][];
     constructor(){
@@ -189,33 +210,6 @@ class _BaseExitStack {
         return cb // allow use as decorator
     }
 
-}
-
-/**
- * ExitStack is a context manager that manages a stack of context managers.
- * It can be used to manage multiple nested context managers.
- *
- * All context managers are entered in the order they are pushed.
- * Their exit methods are called in the reverse order (LIFO).
- *
- * When an error is raise in the body of an exit stack or one of its context managers,
- * the error propagates to the next context manager's `exit` method until it is handled.
- * If the error is not handled, it is raised when the ExitStack exits.
- *
- * Also, the ExitStack accepts callbacks that are called when the ExitStack exits.
- * These callbacks are invoked with any error raised in the ExitStack's `exit` method,
- * so they can be used to handle errors or clean up resources.
- *
- * ```js
- * With(new ExitStack(), exitstack => {
- *   exitstack.enterContext(<contextmanager>)
- *   exitstack.push(<exitmethod>)
- *   exitstack.callback(<callback>)
- *   // on exit, the exitstack will invoke these in reverse order
- * })
- * ```
- */
-class ExitStack extends _BaseExitStack implements ContextManager<ExitStack> {
     enter(): ExitStack {
         return this
     }
