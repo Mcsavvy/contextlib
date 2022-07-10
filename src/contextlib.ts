@@ -149,17 +149,29 @@ class ExitStack implements ContextManager<ExitStack> {
             if (cb === undefined) {
                 continue
             }
+            const msg = error? (error as Error).message: 'none'
+            // console.log(cb);
+            // console.log({hasError, suppressed, pendingRaise});
             try {
+                // console.log('error:', msg, 'would be suppressed');
+                
                 const cbResult = !pendingRaise && (suppressed || !hasError) ? cb() : cb(error)
                 if (cbResult === true) {
+                    // console.log('error:', msg, 'has been suppressed');
                     suppressed = true
                     pendingRaise = false
                     error = undefined
+                } else {
+                    // console.log('error:', msg, 'could not be suppressed');
+                    suppressed = false;
+                    pendingRaise = true;
+                    error = error
                 }
             } catch (e) {
+                // console.log('error:', (e as Error).message, 'raise while suppressing', msg);
                 suppressed = false
                 pendingRaise = true
-                error = error || e
+                error = e
             }
         }
         if (pendingRaise) {
@@ -403,7 +415,7 @@ const suppress = contextmanager(function* suppress(...errors: ErrorT[]){
             };
             return false;
         }() === false) throw error;
-        throw error;
+        return true;
     }
 })
 
