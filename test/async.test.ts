@@ -1,5 +1,6 @@
 import {Use, ExitStack, With} from '../src/async'
 import {contextmanager} from "../src";
+import {Success} from '../src/with'
 
 describe('With', () => {
     test('error', async () => {
@@ -68,7 +69,7 @@ describe('With', () => {
             throw 7
         })
         expect(result.suppressed).toStrictEqual(true)
-        expect(result.suppressed ? result.error : result.result).toStrictEqual(7)
+        expect(result.suppressed ? result.error : (result as Success<number>).result).toStrictEqual(7)
         expect(out).toStrictEqual([
             1,
             5,

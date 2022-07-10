@@ -1,14 +1,15 @@
 {
   "name": "contextlib",
-  "version": "1.1.0",
-  "description": "JS implementation of python's context managers. With 💙 { mcsavvy }",
-  "main": "contextlib.js",
+  "version": "1.0.0",
+  "description": "JS implementation of python's context managers. With 💙 { ... }",
+  "main": "dist/javascript/src/index.js",
+  "type": "module",
   "scripts": {
     "test": "jest",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "build": "tsc -b",
-    "clean": "rimraf coverage node_modules",
+    "clean": "rimraf coverage",
     "distclean": "rimraf dist"
   },
   "repository": {
