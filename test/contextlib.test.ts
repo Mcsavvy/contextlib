@@ -1,3 +1,4 @@
+import { nullcontext } from '../src/helpers'
 import {
     contextmanager,
     With,
@@ -133,19 +134,62 @@ describe("ExitStack", ()=>{
     })
 
     test(`When multiple errors occur in an exitstack, the last error would be thrown`, () => {
-        const buggycm = contextmanager(function* buggycm(id: number){
-            yield id;
-            const msg = `there was an error in contextmanager[${id}]`;
-            console.warn('Throwing: %s', msg);
-            throw new Error(msg);
+        const buggycm = contextmanager(function*(program: string){
+            try {
+                yield program
+            } catch(error){
+                console.log("caught error: ", error)
+                console.log("throwing error: ", program)
+            } finally {
+                throw program
+            }
         });
-        const exitstack = new ExitStack();
-        for (let i=1; i <= 3; i++) {
-            exitstack.enterContext(buggycm(i))
-        };
-        expect(()=>{
-            With(exitstack, ()=>{})
-        }).toThrow("there was an error in contextmanager[3]")
+        expect(() => With(new ExitStack, stack => {
+            stack.enterContext(buggycm("heroku"))
+            stack.enterContext(buggycm("git"))
+            stack.enterContext(buggycm("nodejs"))
+            stack.enterContext(buggycm("vscode"))
+            
+        })).toThrowError("heroku")
+    })
+
+    test("A cm can swallow up error from nested cms by returning true in it's exit method", ()=>{
+        const info = jest.fn(console.log);
+        const error = jest.fn(console.error);
+        const buggycm = contextmanager(function*(program: string){
+            try {
+                yield program
+            } catch(error){
+                info("caught error: " + error)
+            } finally {
+                error("throwing error: " + program)
+                throw program
+            }
+        });
+        const parentcm = {
+            enter: nullcontext.prototype.enter,
+            exit: () => true
+        }
+        expect(() => With(new ExitStack, stack => {
+            // swallow up error "heroku"
+            stack.enterContext(parentcm)
+            stack.enterContext(buggycm("heroku"))
+            stack.enterContext(buggycm("git"))
+            // swallow up error "nodejs"
+            stack.enterContext(parentcm)
+            stack.enterContext(buggycm("nodejs"))
+            stack.enterContext(buggycm("vscode"))
+        })).not.toThrowError()
+        expect(info).toHaveBeenCalledTimes(2)
+        expect(error).toHaveBeenCalledTimes(4)
+        expect(error).toHaveBeenCalledWith("throwing error: vscode")
+        expect(info).toHaveBeenCalledWith("caught error: vscode")
+        expect(error).toHaveBeenCalledWith("throwing error: nodejs")
+        expect(info).not.toHaveBeenCalledWith("caught error: nodejs") // nodejs is swallowed
+        expect(error).toHaveBeenCalledWith("throwing error: git")
+        expect(info).toHaveBeenCalledWith("caught error: git")
+        expect(error).toHaveBeenCalledWith("throwing error: heroku")
+        expect(info).not.toHaveBeenCalledWith("caught error: heroku") // heroku is swallowed
     })
 })
 
@@ -211,109 +255,6 @@ describe('Use', () => {
             6,
             3,
             8
-        ])
-    })
-})
-
-describe('ExitStack', () => {
-    test('exit called with undefined error', () => {
-        const es = new ExitStack()
-        es.callback(() => true)
-        expect(es._exitCallbacks).toHaveLength(1)
-        expect(es.exit(undefined)).toStrictEqual(true)
-        expect(es._exitCallbacks).toHaveLength(0)
-    })
-    test('suppressed called without error', () => {
-        const es = new ExitStack()
-        es.callback(() => true)
-        expect(es._exitCallbacks).toHaveLength(1)
-        expect(es.exit()).not.toBeDefined()
-        expect(es._exitCallbacks).toHaveLength(0)
-    })
-    test('higher nested cm can swallow errors from lower ones', () => {
-        const es = new ExitStack()
-        const out: any[] = []
-        es.callback(function() {
-            out.push(14)
-            expect(arguments).toHaveLength(0)
-            out.push(15)
-        })
-        es.callback(err => {
-            out.push(12)
-            expect(err).toStrictEqual(11)
-            out.push(13)
-            return true
-        })
-        es.callback(function() {
-            out.push(9)
-            expect(arguments).toHaveLength(0)
-            out.push(10)
-            throw 11
-        })
-        es.callback(err => {
-            out.push(7)
-            expect(err).toStrictEqual(1)
-            out.push(8)
-            // suppress
-            return true
-        })
-        es.callback(err => {
-            out.push(4)
-            expect(err).toStrictEqual(1)
-            out.push(5)
-            throw 6
-        })
-        es.callback(err => {
-            out.push(2)
-            expect(err).toStrictEqual(1)
-            out.push(3)
-            return false
-        })
-        expect(es.exit(1)).toStrictEqual(true)
-        expect(out).toStrictEqual([
-            2,
-            3,
-            4,
-            5,
-            7,
-            8,
-            9,
-            10,
-            12,
-            13,
-            14,
-            15
-        ])
-    })
-    test('error swallowing w/o having passed in an error wont return true', () => {
-        const es = new ExitStack()
-        const out: any[] = []
-        es.callback(err => {
-            out.push(6)
-            expect(err).toStrictEqual(3)
-            out.push(7)
-            return true
-        })
-        es.callback(err => {
-            out.push(4)
-            expect(err).toStrictEqual(3)
-            out.push(5)
-            return false
-        })
-        es.callback(function () {
-            out.push(1)
-            expect(arguments).toHaveLength(0)
-            out.push(2)
-            throw 3
-        })
-        expect(es.exit()).not.toBeDefined()
-        expect(out).toStrictEqual([
-            1,
-            2,
-            4,
-            5,
-            6,
-            7
         ])
     })
 })

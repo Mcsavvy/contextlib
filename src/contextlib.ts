@@ -289,6 +289,7 @@ export {
     With,
     Use,
     ContextManagerBase,
+    ExitStackBase,
     ExitStack,
     GeneratorCM,
     contextmanager,

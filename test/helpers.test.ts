@@ -1,4 +1,4 @@
-import {closing, suppress, timed} from '../src/utils'
+import {closing, suppress, timed} from '../src/helpers'
 import With from "../src/index"
 
 describe('closing', () => {
@@ -26,13 +26,36 @@ describe('closing', () => {
     })
 })
 
-test("suppress", ()=>{
-    expect(() => {
-        With(suppress(SyntaxError), ()=>{
-            throw new SyntaxError()
-        })
-    }).not.toThrowError()
+describe("suppress", () => {
+    test("string => string", ()=>{
+        expect(()=>With(suppress("test"), ()=>{
+            throw "test"
+        })).not.toThrow()
+    })
+    test("string => error object", ()=>{
+        expect(()=>With(suppress("test"), ()=>{
+            throw new Error("test")
+        })).not.toThrow()
+    })
+    test("regexp => string", ()=>{
+        expect(()=>With(suppress(/^tes?./), ()=>{
+            throw "test"
+        })).not.toThrow()
+    })
+    test("regexp => error object", ()=>{
+        expect(()=>With(suppress(/^tes?./), ()=>{
+            throw new Error("test")
+        })).not.toThrow()
+    })
+    test("error constructor => error object", ()=>{
+        class NewError extends Error {}
+
+        expect(()=>With(suppress(Error), ()=>{
+            throw new NewError("test")
+        })).not.toThrow()
+    })
 })
+
 
 test("timed", ()=> {
     const timelogger = jest.fn((time: number) => {
@@ -56,5 +79,5 @@ test("closing", ()=>{
         }
     }
     With(closing(closingThing), ()=>{})
-    expect(close.mock.calls.length).toBe(1);
+    expect(close).toHaveBeenCalled();
 })

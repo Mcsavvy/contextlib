@@ -2,7 +2,7 @@ import With from './contextlib';
 
 export default With
 export * from './contextlib';
-export * from './utils';
+export * from './helpers';
 export {
     ContextManager as AsyncContextManager,
     With as AsyncWith,
