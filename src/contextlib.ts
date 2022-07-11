@@ -112,13 +112,13 @@ class ExitStack implements ContextManager<ExitStack> {
             } catch (e) {
                 suppressed = false
                 pendingRaise = true
-                error = error || e
+                error = e
             }
         }
         if (pendingRaise) {
             throw error
         }
-        return hasError && suppressed
+        if (hasError) return suppressed
     }
 
     /**
@@ -194,29 +194,36 @@ class ExitStack implements ContextManager<ExitStack> {
  class GeneratorCM<T> implements ContextManager<T> {
     /**A generator */
     gen: Generator<T>
+    #yielded: boolean
+    
 
     /**@param gen A generator */
     constructor(gen: Generator<T>) {
-        this.gen = gen
+        this.gen = gen;
+        this.#yielded = false;
     }
 
     enter(): T {
+        if (this.#yielded) throw "cannot re-enter a generator contextmanager"
         const {value, done} = this.gen.next()
+        this.#yielded = true;
         if (done) {
             throw Error("Generator did not yield!")
         }; return value;
     }
     exit(error?: any) {
-        if (error) {
-            this.gen.throw(error)
+        var result: IteratorResult<T, true|void>;
+        const hasError = error != undefined;
+        if (hasError) {
             // reraise the error inside the generator
+            result = this.gen.throw(error)
+            // suppress the error if it was suppressed in the generator
+           return result.value === true
         };
         // clean up
-        const r = this.gen.next();
+        result = this.gen.next();
         // the generator should be done since it yields only once
-        if (r.done === false) { throw new Error("Generator did not stop!") }
-        // alway return true to suppress the error
-        return true
+        if (result.done === false) { throw new Error("Generator did not stop!") }
     }
 }
 
