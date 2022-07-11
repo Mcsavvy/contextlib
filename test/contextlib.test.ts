@@ -6,127 +6,149 @@ import {
     ExitStack,
 } from '../src/contextlib'
 
-import {closing, suppress, timed} from '../src/utils'
-
-test("Generator contextmanagers must yield once", () => {
-    const nonYieldingGeneratorCM = contextmanager(function*(){
-
-    });
-    const multiYieldingGeneratorCM = contextmanager(function*(){
-        yield 1;
-        yield 2;
-    })
-    expect(() => {
-        With(nonYieldingGeneratorCM(), ()=>{})
-    }).toThrow("Generator did not yield!")
-    expect(() => {
-        With(multiYieldingGeneratorCM(), ()=>{})
-    }).toThrow("Generator did not stop!")
-})
-
-test("Once an exitstack exits, all callbacks would be called in the reverse order", ()=>{
-    const log = jest.fn(console.log);
-    With(new ExitStack(), exitstack => {
-        exitstack.callback(() => log("first"))
-        exitstack.callback(() => log("second"))
-        exitstack.callback(() => log("third"))
-    })
-    expect(log.mock.calls.length).toBe(3)
-    expect(log.mock.calls[0][0]).toBe("third")
-    expect(log.mock.calls[2][0]).toBe("first")
-})
-
-
-test(`When multiple errors occur in an exitstack, the last error would be thrown`, () => {
-    const buggycm = contextmanager(function* buggycm(id: number){
-        yield id;
-        const msg = `there was an error in contextmanager[${id}]`;
-        console.warn('Throwing: %s', msg);
-        throw new Error(msg);
-    });
-    const exitstack = new ExitStack();
-    for (let i=1; i <= 3; i++) {
-        exitstack.enterContext(buggycm(i))
-    };
-    expect(()=>{
-        With(exitstack, ()=>{})
-    }).toThrow("there was an error in contextmanager[3]")
-})
-
-test('Any error in a context body would be thrown in the context manager', () => {
-    const cm = contextmanager(function* () {
-        let error: Error | undefined;
-        try {
-            yield;
-        } catch (e) {
-            error = e as Error
+describe("ContextManager - General Tests", ()=>{
+    test("The value passed to the context body is the return value of the cm's enter method", () => {
+        // regular cms
+        var cm = {
+            enter(){
+                return "Value"
+            }, exit(){}
         }
-        expect(error).toBeDefined()
-        expect((error as Error).message).toBe("this error was throw in the body")
-    })
-    With(cm(), () => {
-        throw new Error("this error was throw in the body")
+        With(cm, value=>{
+            expect(value).toStrictEqual(cm.enter())
+        })
+
+        // generator cms
+        var gencm = contextmanager(function*(value){
+            yield value
+        })("Value")
+
+        With(gencm, value=>{
+            expect(value).toStrictEqual("Value")
+        })
     })
 })
 
-test('Any error in the context body would be suppressed if the cm\'s exit method returns a true value', () => {
-    class truthycm extends ContextManagerBase{
-        exit() {return true}
-    }
-    expect(() => {
-        With(new truthycm, () => {
-            throw new Error("this error would be suppressed")
+describe("Generator Context Managers", ()=>{
+    test("contextmanagers must yield once and only once", () => {
+        const nonYieldingGeneratorCM = contextmanager(function*(){});
+        const multiYieldingGeneratorCM = contextmanager(function*(){
+            yield 1;
+            yield 2;
         })
-    }).not.toThrowError();
+        expect(() => {
+            With(nonYieldingGeneratorCM(), ()=>{})
+        }).toThrow("Generator did not yield!")
+        expect(() => {
+            With(multiYieldingGeneratorCM(), ()=>{})
+        }).toThrow("Generator did not stop!")
+    })
 
-    // you can also use a generator cm
-    const truthycm_ = contextmanager(function*(){
-        try {
-            yield
-        } finally {
-            return true
+    test("when there is an error in the context body, "+
+    "it is throw right after the yield statement in the generator function", ()=>{
+        var err: any = undefined
+
+        function* generatorFn(){
+            try {
+                yield
+            } catch(error){
+                err = error
+            }
         }
-    });
-
-    expect(() => {
-        With(truthycm_(), () => {
-            throw new Error("this error would be suppressed")
-        })
-    }).not.toThrowError()
-})
-
-test("suppress", ()=>{
-    expect(() => {
-        With(suppress(SyntaxError), ()=>{
-            throw new SyntaxError()
-        })
-    }).not.toThrowError()
-})
-
-test("timed", ()=> {
-    const timelogger = jest.fn((time: number) => {
-        const date = new Date(time),
-            hours = date.getUTCHours().toString().padStart(2, '0'),
-            minutes = date.getUTCMinutes().toString().padStart(2, '0'),
-            seconds = date.getUTCSeconds().toString().padStart(2, '0'),
-            milliseconds = date.getUTCMilliseconds().toString().padStart(3, '0');
-        return `${hours}:${minutes}:${seconds}:${milliseconds}`;
+        expect(()=>With(contextmanager(generatorFn)(), ()=>{
+            throw "this error would be thrown in the generator fn"
+        })).toThrowError()
+        expect(err).toBeDefined()
     })
-    With(timed(timelogger), ()=>{});
-    expect(typeof timelogger.mock.calls[0][0]).toBe('number');
-    expect(timelogger.mock.results[0].value).toMatch(/\d{2}:\d{2}:\d{2}:\d{3}/)
+
+    test("errors in the context body can be suppressed by catching the"+
+    " error in the generator, then returning true", ()=>{
+        var err: any = undefined
+
+        function* generatorFn(){
+            try {
+                yield
+            } catch(error){
+                err = error
+            } return true
+        }
+        expect(()=>With(contextmanager(generatorFn)(), ()=>{
+            throw "this error would be thrown in the generator fn"
+        })).not.toThrowError()
+        expect(err).toBeDefined()
+    })
 })
 
-test("closing", ()=>{
-    const close = jest.fn();
-    const closingThing = {
-        close: function(){
-            close()
-        }
-    }
-    With(closing(closingThing), ()=>{})
-    expect(close.mock.calls.length).toBe(1);
+describe("ExitStack", ()=>{
+    test("An exitstack acts exactly like nested context managers", ()=>{
+        const logA = jest.fn(console.log.bind(console, 'A')),
+              logB = jest.fn(console.log.bind(console, "B")),
+
+        cmA = contextmanager(function*(){
+            yield "A"
+            for (var a = 0; a <= 2; a++){
+                logA()
+            }
+        }),
+        cmB = contextmanager(function*(){
+            yield "B"
+            for (var b = 0; b <= 2; b++){
+                logB()
+            }
+        });
+
+        // nested context managers
+        With(cmA(), ()=>{
+            With(cmA(), ()=>{
+                With(cmA(), ()=>{
+                    With(cmA(), ()=>{
+                        With(cmA(), ()=>{
+                        })
+                    })
+                })
+            })
+        })
+
+        // ExitStack
+        With(new ExitStack(), stack => {
+            stack.enterContext(cmB())
+            stack.enterContext(cmB())
+            stack.enterContext(cmB())
+            stack.enterContext(cmB())
+            stack.enterContext(cmB())
+        })
+        expect(logB.mock.calls.length).toEqual(logB.mock.calls.length);
+    })
+
+    test("Once an exitstack exits, all callbacks would be called in the reverse order", ()=>{
+        const log = jest.fn(console.log);
+        With(new ExitStack(), exitstack => {
+            exitstack.callback(() => log("first"))
+            exitstack.callback(() => log("second"))
+            exitstack.callback(() => log("third"))
+        })
+        expect(log.mock.calls.length).toBe(3)
+        expect(log.mock.calls[0][0]).toBe("third")
+        expect(log.mock.calls[2][0]).toBe("first")
+    })
+
+    test(`When multiple errors occur in an exitstack, the last error would be thrown`, () => {
+        const buggycm = contextmanager(function* buggycm(id: number){
+            yield id;
+            const msg = `there was an error in contextmanager[${id}]`;
+            console.warn('Throwing: %s', msg);
+            throw new Error(msg);
+        });
+        const exitstack = new ExitStack();
+        for (let i=1; i <= 3; i++) {
+            exitstack.enterContext(buggycm(i))
+        };
+        expect(()=>{
+            With(exitstack, ()=>{})
+        }).toThrow("there was an error in contextmanager[3]")
+    })
 })
+
 
 describe('Use', () => {
     test('success', async () => {
@@ -194,7 +216,7 @@ describe('Use', () => {
 })
 
 describe('ExitStack', () => {
-    test('suppressed called with error', () => {
+    test('exit called with undefined error', () => {
         const es = new ExitStack()
         es.callback(() => true)
         expect(es._exitCallbacks).toHaveLength(1)
@@ -205,7 +227,7 @@ describe('ExitStack', () => {
         const es = new ExitStack()
         es.callback(() => true)
         expect(es._exitCallbacks).toHaveLength(1)
-        expect(es.exit()).toStrictEqual(false)
+        expect(es.exit()).not.toBeDefined()
         expect(es._exitCallbacks).toHaveLength(0)
     })
     test('higher nested cm can swallow errors from lower ones', () => {
@@ -284,7 +306,7 @@ describe('ExitStack', () => {
             out.push(2)
             throw 3
         })
-        expect(es.exit()).toStrictEqual(false)
+        expect(es.exit()).not.toBeDefined()
         expect(out).toStrictEqual([
             1,
             2,
@@ -293,30 +315,5 @@ describe('ExitStack', () => {
             6,
             7
         ])
-    })
-})
-
-describe('closing', () => {
-    test('async close', async () => {
-        const out: unknown[] = []
-        const closer = {
-            // eslint-disable-next-line @typescript-eslint/promise-function-async
-            close: () => {
-                out.push(1)
-                return new Promise((resolve) => setTimeout(resolve, 100)).then(() => {
-                    out.push(2)
-                    return 3
-                })
-            },
-            wat: () => 4
-        }
-        const cm = closing(closer)
-        const val = cm.enter()
-        expect(val).toBe(closer)
-        expect(out).toStrictEqual([])
-        const p = cm.exit()
-        expect(out.splice(0, out.length)).toStrictEqual([1])
-        expect(await p).toStrictEqual(3)
-        expect(out.splice(0, out.length)).toStrictEqual([2])
     })
 })
