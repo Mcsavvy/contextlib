@@ -3,9 +3,12 @@ import {
     Success as WithSuccess,
     ContextManager,
     BodyFunction,
-    GeneratorFunction
+    GeneratorFunction,
+    ExitCallback,
+    ExitFunction
 } from './types'
 
+import {getattr} from './utils'
 
 
 /**
@@ -55,6 +58,77 @@ function* Use<T>(manager: ContextManager<T>): Generator<T> {
     exit() {  }
 }
 
+type ExitCallbackArray = [boolean, boolean, ExitFunction|ExitCallback]
+
+/**A base class for ExitStack & AsyncExitStack */
+class ExitStackBase{
+    /**An array of all callbacks plus contexts exit methods */
+    protected exit_callbacks: ExitCallbackArray[]
+
+    protected push_cm_exit(exit: ExitFunction, isSync: boolean=true) {
+        this.exit_callbacks.push([isSync, false, exit])
+    }
+    protected push_exit_callback(callback: ExitCallback, isSync: boolean=true) {
+        this.exit_callbacks.push([isSync, true, callback])
+    }
+    
+    public get exitCallbacks() {
+        return this.exit_callbacks.map(fn => fn);
+    }
+    
+    constructor(){
+        this.exit_callbacks = []
+    }
+
+    /**Preserve the context stack by transferring it to a new ExitStack */
+    popAll(){
+        const stack: typeof this = Object.create(this);
+        stack.exit_callbacks.push(...this.exit_callbacks)
+        this.exit_callbacks = [];
+        return stack
+    }
+
+    /**Registers a callback with the standard `ContextManager.exit` method signature.
+     * 
+     * Can suppress exceptions the same way exit methods can.
+     * Also accepts any object with an `exit` method(regitering a call to the method instead of the object)
+    */
+    push(exit: ExitFunction|{exit: ExitFunction}){
+        try{
+            const exit_method: ExitFunction = getattr(exit, 'exit');
+            this.push_cm_exit(exit_method.bind(exit), true);
+        } catch(error){
+            this.push_cm_exit(exit as ExitFunction, true)
+        }
+        return exit // allow use as a decorator
+    }
+
+    /**Enters the supplied context manager
+     * 
+     * If successful, also pushes the exit method as a callback and returns the results
+     * of the enter method
+     */
+    enterContext<T>(cm: ContextManager<T>): T {
+        const _exit: ExitFunction = getattr(cm, 'exit'),
+              result = cm.enter();
+        this.push_cm_exit(_exit.bind(cm), true)
+        return result;
+
+    }
+
+    /**Registers an arbitrary callback.
+     * 
+     * Cannot suppress exceptions {@link https://github.com/Mcsavvy/contextlib/issues/2}
+     */
+    callback(callback: ExitCallback){
+        this.push_exit_callback(callback, true);
+        return callback //allow use as a decorator
+    }
+
+
+
+}
+
 /**
  * ExitStack is a context manager that manages a stack of context managers.
  * It can be used to manage multiple nested context managers.
@@ -79,15 +153,8 @@ function* Use<T>(manager: ContextManager<T>): Generator<T> {
  * })
  * ```
  */
-class ExitStack implements ContextManager<ExitStack> {
-    /**An array of all callbacks plus contexts exit methds */
-    _exitCallbacks: Function[]
-
-    constructor() {
-        this._exitCallbacks = [];
-    }
-
-    enter(): ExitStack {
+class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
+    enter(): typeof this {
         return this
     }
 
@@ -97,67 +164,26 @@ class ExitStack implements ContextManager<ExitStack> {
         let pendingRaise = false
         // callbacks are invoked in LIFO order to match the behaviour of
         // nested context managers
-        while (this._exitCallbacks.length !== 0) {
-            const cb = this._exitCallbacks.pop()
-            if (cb === undefined) {
-                continue
-            }
+        while (this.exit_callbacks.length !== 0) {
+            const [isSync, isCallback, Fn] = this.exit_callbacks.pop()
+            if (Fn === undefined) continue
             try {
-                const cbResult = !pendingRaise && (suppressed || !hasError) ? cb() : cb(error)
-                if (cbResult === true) {
-                    suppressed = true
-                    pendingRaise = false
-                    error = undefined
+                if (isCallback) Fn();
+                else {
+                    const result = !pendingRaise && (suppressed || !hasError) ? Fn() : Fn(error);
+                    if (result === true){
+                        suppressed = hasError
+                        pendingRaise = false
+                        error = undefined
+                    } else suppressed = !hasError
                 }
             } catch (e) {
                 suppressed = false
                 pendingRaise = true
                 error = e
             }
-        }
-        if (pendingRaise) {
-            throw error
-        }
+        } if (pendingRaise) throw error;
         if (hasError) return suppressed
-    }
-
-    /**
-     * Add a regular callback to the ExitStack.
-     * @param cb a regular callback*/
-    callback(cb: (err?: unknown) => unknown) {
-        this._exitCallbacks.push(cb)
-    }
-
-    /**
-     * Add a context manager to the ExitStack. The context manager's
-     * `exit()` method will be called with the arguments given to the
-     * ExitStack's exit() method.
-     * @param cm a context manager*/
-    push(cm: ContextManager) {
-        this.callback(cm.exit.bind(cm))
-    }
-
-    /**
-     * Enter another context manager and return the result of it's 'enter' method.
-     * The context manager's `exit()` method will be called with the
-     * arguments given to the ExitStack's exit() method.
-     * @param cm a context manager*/
-    enterContext<T>(cm: ContextManager<T>): T {
-        const result = cm.enter()
-        this.push(cm)
-        return result
-    }
-
-    /**
-     * Remove all context managers from the ExitStack and return a new ExitStack containing
-     * the removed context managers.
-     * @returns A new exit stack containing all exit callbacks from this one*/
-    popAll(): ExitStack {
-        // preserve the context stack by tranferring the callbacks to a new stack
-        const stack = new ExitStack();
-        stack._exitCallbacks = this._exitCallbacks;
-        this._exitCallbacks = [];
-        return stack
     }
 }
 
@@ -218,6 +244,7 @@ class ExitStack implements ContextManager<ExitStack> {
             // reraise the error inside the generator
             result = this.gen.throw(error)
             // suppress the error if it was suppressed in the generator
+            if (! result.done) throw "Generator didn't stop after throw"
            return result.value === true
         };
         // clean up
