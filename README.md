@@ -157,7 +157,7 @@ With(new ExitStack(), exitstack => {
 + With (_default export_)
 + ContextManagerBase
 + ExitStack
-+ GeneratorCM
++ GeneratorContextManager
 + contextmanager
 + nullcontext
 + timed

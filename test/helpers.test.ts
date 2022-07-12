@@ -1,5 +1,5 @@
-import {closing, suppress, timed} from '../src/helpers'
-import With from "../src/index"
+import { closing, suppress, timed } from '../src/helpers'
+import With from '../src/contextlib'
 
 describe('closing', () => {
     test('async close', async () => {
@@ -26,58 +26,57 @@ describe('closing', () => {
     })
 })
 
-describe("suppress", () => {
-    test("string => string", ()=>{
-        expect(()=>With(suppress("test"), ()=>{
-            throw "test"
+describe('suppress', () => {
+    test('string => string', () => {
+        expect(() => With(suppress('test'), () => {
+            throw 'test'
         })).not.toThrow()
     })
-    test("string => error object", ()=>{
-        expect(()=>With(suppress("test"), ()=>{
-            throw new Error("test")
+    test('string => error object', () => {
+        expect(() => With(suppress('test'), () => {
+            throw new Error('test')
         })).not.toThrow()
     })
-    test("regexp => string", ()=>{
-        expect(()=>With(suppress(/^tes?./), ()=>{
-            throw "test"
+    test('regexp => string', () => {
+        expect(() => With(suppress(/^tes?./), () => {
+            throw 'test'
         })).not.toThrow()
     })
-    test("regexp => error object", ()=>{
-        expect(()=>With(suppress(/^tes?./), ()=>{
-            throw new Error("test")
+    test('regexp => error object', () => {
+        expect(() => With(suppress(/^tes?./), () => {
+            throw new Error('test')
         })).not.toThrow()
     })
-    test("error constructor => error object", ()=>{
+    test('error constructor => error object', () => {
         class NewError extends Error {}
 
-        expect(()=>With(suppress(Error), ()=>{
-            throw new NewError("test")
+        expect(() => With(suppress(Error), () => {
+            throw new NewError('test')
         })).not.toThrow()
     })
 })
 
-
-test("timed", ()=> {
+test('timed', () => {
     const timelogger = jest.fn((time: number) => {
-        const date = new Date(time),
-            hours = date.getUTCHours().toString().padStart(2, '0'),
-            minutes = date.getUTCMinutes().toString().padStart(2, '0'),
-            seconds = date.getUTCSeconds().toString().padStart(2, '0'),
-            milliseconds = date.getUTCMilliseconds().toString().padStart(3, '0');
-        return `${hours}:${minutes}:${seconds}:${milliseconds}`;
+        const date = new Date(time)
+        const hours = date.getUTCHours().toString().padStart(2, '0')
+        const minutes = date.getUTCMinutes().toString().padStart(2, '0')
+        const seconds = date.getUTCSeconds().toString().padStart(2, '0')
+        const milliseconds = date.getUTCMilliseconds().toString().padStart(3, '0')
+        return `${hours}:${minutes}:${seconds}:${milliseconds}`
     })
-    With(timed(timelogger), ()=>{});
-    expect(typeof timelogger.mock.calls[0][0]).toBe('number');
+    With(timed(timelogger), () => {})
+    expect(typeof timelogger.mock.calls[0][0]).toBe('number')
     expect(timelogger.mock.results[0].value).toMatch(/\d{2}:\d{2}:\d{2}:\d{3}/)
 })
 
-test("closing", ()=>{
-    const close = jest.fn();
+test('closing', () => {
+    const close = jest.fn()
     const closingThing = {
-        close: function(){
+        close: function () {
             close()
         }
     }
-    With(closing(closingThing), ()=>{})
-    expect(close).toHaveBeenCalled();
+    With(closing(closingThing), () => {})
+    expect(close).toHaveBeenCalled()
 })

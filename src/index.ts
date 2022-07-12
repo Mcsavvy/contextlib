@@ -1,11 +1,14 @@
-import With from './contextlib';
+import With from './contextlib'
 
 export default With
-export * from './contextlib';
-export * from './helpers';
+export * from './contextlib'
+export * from './helpers'
+export * from './types'
 export {
-    ContextManager as AsyncContextManager,
-    With as AsyncWith,
+    ContextManagerBase as AsyncContextManagerBase,
+    GeneratorContextManager as AsyncGeneratorContextManager,
+    contextmanager as asynccontextmanager,
     Use as AsyncUse,
-    ExitStack as AsyncExitStack
+    ExitStack as AsyncExitStack,
+    With as AsyncWith
 } from './async'

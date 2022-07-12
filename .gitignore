@@ -2,5 +2,3 @@
 /.idea
 /node_modules
 /coverage
-test.ts
-/dist

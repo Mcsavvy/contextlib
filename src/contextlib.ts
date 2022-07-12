@@ -1,6 +1,5 @@
 import {
     Result as WithResult,
-    Success as WithSuccess,
     ContextManager,
     BodyFunction,
     GeneratorFunction,
@@ -8,8 +7,7 @@ import {
     ExitFunction
 } from './types'
 
-import {getattr} from './utils'
-
+import { getattr } from './utils'
 
 /**
  * The With function manages context, it enters the given context on invocation
@@ -22,19 +20,19 @@ import {getattr} from './utils'
  * If the context manager's enter does not raise an error, and no error is raised
  * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
- * @param body the body function for this context*/
-export default function With<T, R = unknown>(manager: ContextManager<T>, body: BodyFunction<T,R>): WithResult<R> {
+ * @param body the body function for this context */
+export default function With<T, R = unknown> (manager: ContextManager<T>, body: BodyFunction<T, R>): WithResult<R> {
     const val = manager.enter()
     let result: WithResult<R>
     try {
-        result = {result: body(val), suppressed: false}
+        result = { result: body(val), suppressed: false }
         manager.exit()
         return result
     } catch (error) {
         if (manager.exit(error) !== true) {
             throw error
         }
-        return {error: error, suppressed: true}
+        return { error: error, suppressed: true }
     }
 }
 
@@ -42,7 +40,7 @@ export default function With<T, R = unknown>(manager: ContextManager<T>, body: B
  * Use constructs a generator that may be used to fulfil the same role as With,
  * though without the suppression or error handling capabilities.
  */
-export function* Use<T>(manager: ContextManager<T>): Generator<T> {
+export function * Use<T> (manager: ContextManager<T>): Generator<T> {
     const val = manager.enter()
     try {
         yield val
@@ -51,81 +49,77 @@ export function* Use<T>(manager: ContextManager<T>): Generator<T> {
     }
 }
 
-/**context manager class to inherit from.
- * It returns itself in it's enter method like the default python implementation.*/
+/** context manager class to inherit from.
+ * It returns itself in it's enter method like the default python implementation. */
 export class ContextManagerBase implements ContextManager<ContextManagerBase> {
-    enter() { return this; }
-    exit() {  }
+    enter () { return this }
+    exit () { }
 }
 
+/** A base class for ExitStack & AsyncExitStack */
+export class ExitStackBase {
+    /** An array of all callbacks plus contexts exit methods */
+    protected exit_callbacks: Array<[boolean, boolean, ExitFunction|ExitCallback]>
 
-/**A base class for ExitStack & AsyncExitStack */
-export class ExitStackBase{
-    /**An array of all callbacks plus contexts exit methods */
-    protected exit_callbacks: [boolean, boolean, ExitFunction|ExitCallback][]
-
-    protected push_cm_exit(exit: ExitFunction, isSync: boolean) {
+    protected push_cm_exit (exit: ExitFunction, isSync: boolean) {
         this.exit_callbacks.push([isSync, false, exit])
     }
-    protected push_exit_callback(callback: ExitCallback, isSync: boolean) {
+
+    protected push_exit_callback (callback: ExitCallback, isSync: boolean) {
         this.exit_callbacks.push([isSync, true, callback])
     }
-    
-    public get exitCallbacks() {
-        return this.exit_callbacks.map(fn => fn);
+
+    public get exitCallbacks () {
+        return this.exit_callbacks.map(fn => fn)
     }
-    
-    constructor(){
+
+    constructor () {
         this.exit_callbacks = []
     }
 
-    /**Preserve the context stack by transferring it to a new ExitStack */
-    popAll(){
-        const stack: typeof this = Object.create(this);
+    /** Preserve the context stack by transferring it to a new ExitStack */
+    popAll () {
+        const stack: typeof this = Object.create(this)
         stack.exit_callbacks.push(...this.exit_callbacks)
-        this.exit_callbacks = [];
+        this.exit_callbacks = []
         return stack
     }
 
-    /**Registers a callback with the standard `ContextManager.exit` method signature.
-     * 
+    /** Registers a callback with the standard `ContextManager.exit` method signature.
+     *
      * Can suppress exceptions the same way exit methods can.
-     * Also accepts any object with an `exit` method(regitering a call to the method instead of the object)
+     * Also accepts any object with an `exit` method(registering a call to the method instead of the object)
     */
-    push(exit: ExitFunction|{exit: ExitFunction}){
-        try{
-            const exit_method: ExitFunction = getattr(exit, 'exit');
-            this.push_cm_exit(exit_method.bind(exit), true);
-        } catch(error){
+    push (exit: ExitFunction|{exit: ExitFunction}) {
+        try {
+            const exit_method: ExitFunction = getattr(exit, 'exit')
+            this.push_cm_exit(exit_method.bind(exit), true)
+        } catch (error) {
             this.push_cm_exit(exit as ExitFunction, true)
         }
         return exit // allow use as a decorator
     }
 
-    /**Enters the supplied context manager
-     * 
+    /** Enters the supplied context manager
+     *
      * If successful, also pushes the exit method as a callback and returns the results
      * of the enter method
      */
     enterContext<T>(cm: ContextManager<T>): T {
-        const _exit: ExitFunction = getattr(cm, 'exit'),
-              result = cm.enter();
+        const _exit: ExitFunction = getattr(cm, 'exit')
+        const result = cm.enter()
         this.push_cm_exit(_exit.bind(cm), true)
-        return result;
-
+        return result
     }
 
-    /**Registers an arbitrary callback.
-     * 
+    /** Registers an arbitrary callback.
+     *
      * Cannot suppress exceptions {@link https://github.com/Mcsavvy/contextlib/issues/2}
      */
-    callback(callback: ExitCallback){
-        this.push_exit_callback(callback, true);
-        return callback //allow use as a decorator
+    callback (callback: ExitCallback) {
+        this.push_exit_callback(callback, true)
+        return callback // allow use as a decorator
     }
-
-
-
 }
 
 /**
@@ -153,24 +147,24 @@ export class ExitStackBase{
  * ```
  */
 export class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
-    enter(): typeof this {
+    enter () {
         return this
     }
 
-    exit(error?: unknown): boolean {
+    exit (error?: unknown): boolean {
         const hasError = arguments.length !== 0
         let suppressed = false
         let pendingRaise = false
-        // callbacks are invoked in LIFO order to match the behaviour of
+        // callbacks are invoked in LIFO order to match the behavior of
         // nested context managers
         while (this.exit_callbacks.length !== 0) {
             const [isSync, isCallback, Fn] = this.exit_callbacks.pop()
             if (Fn === undefined) continue
             try {
-                if (isCallback) Fn();
+                if (isCallback) Fn()
                 else {
-                    const result = !pendingRaise && (suppressed || !hasError) ? Fn() : Fn(error);
-                    if (result === true){
+                    const result = !pendingRaise && (suppressed || !hasError) ? Fn() : Fn(error)
+                    if (result === true) {
                         suppressed = hasError
                         pendingRaise = false
                         error = undefined
@@ -181,13 +175,13 @@ export class ExitStack extends ExitStackBase implements ContextManager<ExitStack
                 pendingRaise = true
                 error = e
             }
-        } if (pendingRaise) throw error;
+        } if (pendingRaise) throw error
         if (hasError) return suppressed
     }
 }
 
 /**
- * GeneratorCM is a context manager that wraps a generator.
+ * GeneratorContextManager is a context manager that wraps a generator.
  * The generator should yield only once. The value yielded is passed to the
  * body function.
  *
@@ -202,7 +196,7 @@ export class ExitStack extends ExitStackBase implements ContextManager<ExitStack
  * ```
  * function* genFn(<args>){
  *   // setup
- *   try { 
+ *   try {
  *      yield <value>
  *      // any error from the body function is thrown here
  *   }
@@ -216,40 +210,40 @@ export class ExitStack extends ExitStackBase implements ContextManager<ExitStack
  * If the generator does not handle any error raised,
  * the error would be re-raised when the context is exited.
  */
-export class GeneratorCM<T> implements ContextManager<T> {
-    /**A generator */
+export class GeneratorContextManager<T> implements ContextManager<T> {
+    /** A generator */
     gen: Generator<T>
     #yielded: boolean
-    
 
-    /**@param gen A generator */
-    constructor(gen: Generator<T>) {
-        this.gen = gen;
-        this.#yielded = false;
+    /** @param gen A generator */
+    constructor (gen: Generator<T>) {
+        this.gen = gen
+        this.#yielded = false
     }
 
-    enter(): T {
-        if (this.#yielded) throw "cannot re-enter a generator contextmanager"
-        const {value, done} = this.gen.next()
-        this.#yielded = true;
+    enter (): T {
+        if (this.#yielded) throw 'cannot re-enter a generator contextmanager'
+        const { value, done } = this.gen.next()
+        this.#yielded = true
         if (done) {
-            throw Error("Generator did not yield!")
-        }; return value;
+            throw Error('Generator did not yield!')
+        }; return value
     }
-    exit(error?: any) {
-        var result: IteratorResult<T, true|void>;
-        const hasError = error != undefined;
+
+    exit (error?: any) {
+        let result: IteratorResult<T, true|void>
+        const hasError = error != undefined
         if (hasError) {
             // reraise the error inside the generator
             result = this.gen.throw(error)
             // suppress the error if it was suppressed in the generator
-            if (! result.done) throw "Generator didn't stop after throw"
-           return result.value === true
+            if (!result.done) throw "Generator didn't stop after throw"
+            return result.value === true
         };
         // clean up
-        result = this.gen.next();
+        result = this.gen.next()
         // the generator should be done since it yields only once
-        if (result.done === false) { throw new Error("Generator did not stop!") }
+        if (!result.done) { throw new Error('Generator did not stop!') }
     }
 }
 
@@ -259,7 +253,7 @@ export class GeneratorCM<T> implements ContextManager<T> {
  *
  * Typical Usage:
  * ```
- * var generatorcm = contextmanager(function* genfunc(<args>){
+ * var GeneratorContextManager = contextmanager(function* genfunc(<args>){
  *     // setup with <args>
  *     try {
  *         yield <value>
@@ -268,17 +262,17 @@ export class GeneratorCM<T> implements ContextManager<T> {
  *         // cleanup
  *     }
  * })
- * // generatorcm still needs to be invoked with <args> to get the context manager.
- * var cm = generatorcm(<args>)
+ * // GeneratorContextManager still needs to be invoked with <args> to get the context manager.
+ * var cm = GeneratorContextManager(<args>)
  * ```
  * @param func a generator function or any function that returns a generator
- * @returns a function that returns a GeneratorCM when called with the argument
- * for func*/
-export function contextmanager<T, Y extends any[]>(func: GeneratorFunction<T, Y>): (...args: Y) => GeneratorCM<T> {
-    function helper(...args: Y){
+ * @returns a function that returns a GeneratorContextManager when called with the argument
+ * for func */
+export function contextmanager<T, Y extends any[]> (func: GeneratorFunction<T, Y>): (...args: Y) => GeneratorContextManager<T> {
+    function helper (...args: Y) {
         const gen = func(...args)
-        return new GeneratorCM<T>(gen)
+        return new GeneratorContextManager<T>(gen)
     }
-    Object.defineProperty(helper, 'name', {value: func.name||'generatorcontext'})
+    Object.defineProperty(helper, 'name', { value: func.name || 'generatorcontext' })
     return helper
 }
