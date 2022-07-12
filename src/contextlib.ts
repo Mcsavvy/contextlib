@@ -65,10 +65,10 @@ class ExitStackBase{
     /**An array of all callbacks plus contexts exit methods */
     protected exit_callbacks: ExitCallbackArray[]
 
-    protected push_cm_exit(exit: ExitFunction, isSync: boolean=true) {
+    protected push_cm_exit(exit: ExitFunction, isSync: boolean) {
         this.exit_callbacks.push([isSync, false, exit])
     }
-    protected push_exit_callback(callback: ExitCallback, isSync: boolean=true) {
+    protected push_exit_callback(callback: ExitCallback, isSync: boolean) {
         this.exit_callbacks.push([isSync, true, callback])
     }
     

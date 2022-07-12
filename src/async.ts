@@ -1,17 +1,21 @@
-import {Result as WithResult, Success as WithSuccess} from './types'
+import {
+    Result as WithResult,
+    Success as WithSuccess,
+    AsyncContextManager as ContextManager,
+    AsyncBodyFunction as BodyFunction,
+    ExitCallback,
+    ExitFunction,
+    AsyncExitFunction,
+    AsyncExitCallback,
+} from './types'
 
-/**
- * An async variant (and superset) of ContextManager<T>.
- */
-export interface ContextManager<T = unknown> {
-    enter: () => PromiseLike<T> | T
-    exit: (err?: unknown) => unknown
-}
+import { ExitStackBase } from './contextlib'
+import { getattr } from 'utils'
 
 /**
  * An async implementation of With.
  */
-export async function With<T, R = unknown>(manager: ContextManager<T>, body: (val: T) => PromiseLike<R> | R): Promise<WithResult<R>> {
+export async function With<T, R = unknown>(manager: ContextManager<T>, body: BodyFunction<T, R>): Promise<WithResult<R>> {
     const val = await manager.enter()
     let result: WithSuccess<R> | undefined
     try {
@@ -47,14 +51,49 @@ export async function* Use<T>(manager: ContextManager<T>): AsyncGenerator<T> {
 /**
  * An async implementation of ExitStack.
  */
-export class ExitStack implements ContextManager<ExitStack> {
-    _exitCallbacks: Array<(error?: unknown) => unknown>
+export class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
+    protected exit_callbacks: [boolean, boolean, ExitFunction|AsyncExitFunction
+        | ExitCallback|AsyncExitCallback][]
 
-    constructor() {
-        this._exitCallbacks = [];
+    /**Registers an async callback with the standard `ContextManager.exit` method signature.
+     * 
+     * Can suppress exceptions the same way exit methods can.
+     * Also accepts any object with an `exit` method(registering a call to the method instead of the object)
+    */
+     pushAsync(exit: AsyncExitFunction|{exit: AsyncExitFunction}){
+        try{
+            const exit_method: AsyncExitFunction = getattr(exit, 'exit');
+            this.push_cm_exit(exit_method.bind(exit), false);
+        } catch(error){
+            this.push_cm_exit(exit as ExitFunction, false)
+        }
+        return exit // allow use as a decorator
     }
 
-    enter(): ExitStack {
+    /**Enters the supplied context manager
+     * 
+     * If successful, also pushes the exit method as a callback and returns the results
+     * of the enter method
+     */
+     async enterAsyncContext<T>(cm: ContextManager<T>): Promise<T> {
+        const _exit: AsyncExitFunction = getattr(cm, 'exit'),
+              result = await cm.enter();
+        this.push_cm_exit(_exit.bind(cm), false);
+        return result;
+
+    }
+
+    /**Registers an arbitrary async callback.
+     * 
+     * Cannot suppress exceptions {@link https://github.com/Mcsavvy/contextlib/issues/2}
+     */
+    async callbackAsync(callback: AsyncExitCallback){
+        this.push_exit_callback(callback, false);
+        return callback //allow use as a decorator
+    }
+
+
+    async enter(): Promise<typeof this> {
         return this
     }
 
@@ -64,48 +103,27 @@ export class ExitStack implements ContextManager<ExitStack> {
         let pendingRaise = false
         // callbacks are invoked in LIFO order to match the behaviour of
         // nested context managers
-        while (this._exitCallbacks.length !== 0) {
-            const cb = this._exitCallbacks.pop()
-            if (cb === undefined) {
-                continue
-            }
+        while (this.exit_callbacks.length !== 0) {
+            const [isSync, isCallback, Fn] = this.exit_callbacks.pop()
+            if (Fn === undefined) continue
             try {
-                const cbResult = !pendingRaise && (suppressed || !hasError) ? await cb() : await cb(error)
-                if (cbResult === true) {
-                    suppressed = true
-                    pendingRaise = false
-                    error = undefined
+                if (isCallback) isSync ? Fn() : await Fn();
+                else {
+                    const result = !pendingRaise && (suppressed || !hasError) 
+                        ? isSync ? Fn() : await Fn()
+                        : isSync ? Fn(error) : await Fn(error);
+                    if (result === true){
+                        suppressed = hasError
+                        pendingRaise = false
+                        error = undefined
+                    } else suppressed = !hasError
                 }
             } catch (e) {
                 suppressed = false
                 pendingRaise = true
-                error = error || e
+                error = e
             }
-        }
-        if (pendingRaise) {
-            throw error
-        }
-        return hasError && suppressed
-    }
-
-    callback(cb: (error?: unknown) => unknown) {
-        this._exitCallbacks.push(cb)
-    }
-
-    push(cm: ContextManager) {
-        this.callback(cm.exit.bind(cm))
-    }
-
-    async enterContext<T>(cm: ContextManager<T>): Promise<T> {
-        const result = await cm.enter()
-        this.push(cm)
-        return result
-    }
-
-    popAll(): ExitStack {
-        const stack = new ExitStack();
-        stack._exitCallbacks = this._exitCallbacks;
-        this._exitCallbacks = [];
-        return stack
+        } if (pendingRaise) throw error;
+        if (hasError) return suppressed
     }
 }
