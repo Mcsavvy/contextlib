@@ -23,7 +23,7 @@ import {getattr} from './utils'
  * within the callback, exit will be called w/o args.
  * @param manager the context manager for this context
  * @param body the body function for this context*/
-function With<T, R = unknown>(manager: ContextManager<T>, body: BodyFunction<T,R>): WithResult<R> {
+export default function With<T, R = unknown>(manager: ContextManager<T>, body: BodyFunction<T,R>): WithResult<R> {
     const val = manager.enter()
     let result: WithResult<R>
     try {
@@ -42,7 +42,7 @@ function With<T, R = unknown>(manager: ContextManager<T>, body: BodyFunction<T,R
  * Use constructs a generator that may be used to fulfil the same role as With,
  * though without the suppression or error handling capabilities.
  */
-function* Use<T>(manager: ContextManager<T>): Generator<T> {
+export function* Use<T>(manager: ContextManager<T>): Generator<T> {
     const val = manager.enter()
     try {
         yield val
@@ -53,17 +53,16 @@ function* Use<T>(manager: ContextManager<T>): Generator<T> {
 
 /**context manager class to inherit from.
  * It returns itself in it's enter method like the default python implementation.*/
- class ContextManagerBase implements ContextManager<ContextManagerBase> {
+export class ContextManagerBase implements ContextManager<ContextManagerBase> {
     enter() { return this; }
     exit() {  }
 }
 
-type ExitCallbackArray = [boolean, boolean, ExitFunction|ExitCallback]
 
 /**A base class for ExitStack & AsyncExitStack */
-class ExitStackBase{
+export class ExitStackBase{
     /**An array of all callbacks plus contexts exit methods */
-    protected exit_callbacks: ExitCallbackArray[]
+    protected exit_callbacks: [boolean, boolean, ExitFunction|ExitCallback][]
 
     protected push_cm_exit(exit: ExitFunction, isSync: boolean) {
         this.exit_callbacks.push([isSync, false, exit])
@@ -153,7 +152,7 @@ class ExitStackBase{
  * })
  * ```
  */
-class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
+export class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
     enter(): typeof this {
         return this
     }
@@ -217,7 +216,7 @@ class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
  * If the generator does not handle any error raised,
  * the error would be re-raised when the context is exited.
  */
- class GeneratorCM<T> implements ContextManager<T> {
+export class GeneratorCM<T> implements ContextManager<T> {
     /**A generator */
     gen: Generator<T>
     #yielded: boolean
@@ -275,7 +274,7 @@ class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
  * @param func a generator function or any function that returns a generator
  * @returns a function that returns a GeneratorCM when called with the argument
  * for func*/
-function contextmanager<T, Y extends any[]>(func: GeneratorFunction<T, Y>): (...args: Y) => GeneratorCM<T> {
+export function contextmanager<T, Y extends any[]>(func: GeneratorFunction<T, Y>): (...args: Y) => GeneratorCM<T> {
     function helper(...args: Y){
         const gen = func(...args)
         return new GeneratorCM<T>(gen)
@@ -283,15 +282,3 @@ function contextmanager<T, Y extends any[]>(func: GeneratorFunction<T, Y>): (...
     Object.defineProperty(helper, 'name', {value: func.name||'generatorcontext'})
     return helper
 }
-
-
-export {
-    With,
-    Use,
-    ContextManagerBase,
-    ExitStackBase,
-    ExitStack,
-    GeneratorCM,
-    contextmanager,
-}
-export default With;

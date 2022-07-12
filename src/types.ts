@@ -19,6 +19,9 @@ export interface Failure {
 /**This function would be used as a context manager, it should yield only once */
 export type GeneratorFunction<T, Args extends any[]> = (...args: Args) => Generator<T, any>
 
+/**This function would be used as a contextmanager, it should yield only once */
+export type AsyncGeneratorFunction<T, Args extends any[]> = (...args: Args) => Promise<AsyncGenerator<T, any>>
+
 /**
  * This annotates the return type of the `With` function.
  * This can be {@link Success} or {@link Failure}*/

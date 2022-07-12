@@ -7,10 +7,118 @@ import {
     ExitFunction,
     AsyncExitFunction,
     AsyncExitCallback,
+    AsyncGeneratorFunction
 } from './types'
 
 import { ExitStackBase } from './contextlib'
 import { getattr } from 'utils'
+
+
+/**context manager class to inherit from.
+ * It returns itself in it's enter method like the default python implementation.*/
+export class ContextManagerBase implements ContextManager<ContextManagerBase> {
+    async enter() { return this; }
+    async exit() {  }
+}
+
+/**
+ * GeneratorCM is a context manager that wraps an async generator.
+ * The generator should yield only once. The value yielded is passed to the
+ * body function.
+ *
+ * After the body function returns, the generator is entered again.
+ * This time, the generator should clean up.
+ *
+ * If an error is raised in the body function, the error is thrown at the
+ * point the generator yielded.
+ *
+ * The preferred way of handling errors is to use a try-finally block.
+ *
+ * ```
+ * async function* genFn(<args>){
+ *   // setup
+ *   try { 
+ *      yield <value>
+ *      // any error from the body function is thrown here
+ *   }
+ *   finally {
+ *     // cleanup
+ *   }
+ * }
+ * ```
+ *
+ * NOTE:
+ * If the generator does not handle any error raised,
+ * the error would be re-raised when the context is exited.
+ */
+export class GeneratorCM<T> implements ContextManager<T> {
+    /**A generator */
+    gen: AsyncGenerator<T>
+    #yielded: boolean
+    
+
+    /**@param gen A generator */
+    constructor(gen: AsyncGenerator<T>) {
+        this.gen = gen;
+        this.#yielded = false;
+    }
+
+    async enter(): Promise<T> {
+        if (this.#yielded) throw "cannot re-enter a generator contextmanager"
+        const {value, done} = await this.gen.next()
+        this.#yielded = true;
+        if (done) {
+            throw Error("Generator did not yield!")
+        }; return value;
+    }
+    async exit(error?: any) {
+        var result: IteratorResult<T, true|void>;
+        const hasError = error != undefined;
+        if (hasError) {
+            // reraise the error inside the generator
+            result = await this.gen.throw(error)
+            // suppress the error if it was suppressed in the generator
+            if (! result.done) throw "Generator didn't stop after throw"
+           return result.value === true
+        };
+        // clean up
+        result = await this.gen.next();
+        // the generator should be done since it yields only once
+        if (result.done === false) { throw new Error("Generator did not stop!") }
+    }
+}
+
+/**
+ * asynccontextmanager decorator to wrap a generator function and turn
+ * it into a context manager.
+ *
+ * Typical Usage:
+ * ```
+ * var generatorcm = asynccontextmanager(async function* genfunc(<args>){
+ *     // setup with <args>
+ *     try {
+ *         yield <value>
+ *     }
+ *     finally {
+ *         // cleanup
+ *     }
+ * })
+ * // generatorcm still needs to be invoked with <args> to get the context manager.
+ * var cm = await generatorcm(<args>)
+ * ```
+ * @param func a generator function or any function that returns a generator
+ * @returns a function that returns a GeneratorCM when called with the argument
+ * for func*/
+export async function contextmanager<T, Y extends any[]>(
+    func: AsyncGeneratorFunction<T, Y>
+): Promise<(...args: Y) => Promise<GeneratorCM<T>>> {
+    async function helper(...args: Y){
+        const gen = await func(...args)
+        return new GeneratorCM<T>(gen)
+    }
+    Object.defineProperty(helper, 'name', {value: func.name||'generatorcontext'})
+    return helper
+}
 
 /**
  * An async implementation of With.
