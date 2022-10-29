@@ -1,10 +1,5 @@
 .vscode
 node_modules
-.eslintrc
-.eslintignore
-tsconfig*.json
-package-lock.json
-jest.config.cjs
-/*.ts
-fixbuild
 test
+package-lock.json
+fixbuild

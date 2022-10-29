@@ -1,2 +1,4 @@
 **/*.js
 **/*.d.ts
+test/*
+src/index.ts

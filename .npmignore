@@ -1,0 +1,10 @@
+node_modules
+.vscode
+.gitignore
+docs
+examples
+test
+*.ts
+.eslint*
+tsconfig*
+jest.config*
