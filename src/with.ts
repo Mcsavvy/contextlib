@@ -24,15 +24,8 @@ import {
     WithResult
 } from './types.js'
 
-import {
-    getattr
-} from './utils.js'
 
-type ContextBody<ArgT, ReturnT> = (...args: [ArgT]) => ReturnT
-
-/**
- * buildGenerator - create a contextmanager form a generator
- */
+type ContextBody<ArgT, ReturnT> = (...args?: [ArgT]) => ReturnT
 
 /**
  * With - handles entering and exiting a context
@@ -51,8 +44,10 @@ function With<T, R = unknown> (
     } else {
         cm = manager as ContextManager<T>
     }
-    getattr(cm, 'enter')
-    getattr(cm, 'exit')
+    if (cm.enter == undefined)
+        throw Error("Attribute Error: Object has no enter()")
+    if (cm.exit == undefined)
+        throw Error("Attribute Error: Object has no exit()")
 
     const contextvar = cm.enter()
     try {

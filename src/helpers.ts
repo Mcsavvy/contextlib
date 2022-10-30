@@ -86,7 +86,7 @@ type ErrorType = (new() => Error) | string | RegExp
  *   `regexp.test(error.message)`. If the error thrown is a string, then a regexp test is done.
  * + An ErrorConstructor: Then the error would be suppressed if `error instanceof <ErrorConstructor>`
  */
-function suppress (...errors: ErrorType[]): ContextManager<void> {
+function suppress (...errors: ErrorType[]): ContextManager<ErrorType[]> {
     function exit (error?: ContextError): boolean {
         function predicate (suppressed: ErrorType): boolean {
             if (typeof error === 'string') {
@@ -99,7 +99,7 @@ function suppress (...errors: ErrorType[]): ContextManager<void> {
 
         return errors.find(predicate) !== undefined
     }
-    return { enter: () => nullcontext.prototype.enter, exit }
+    return { enter: () => errors, exit }
 }
 
 export {
