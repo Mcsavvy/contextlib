@@ -1,20 +1,19 @@
 {
   "name": "contextlib",
-  "version": "1.2.0",
+  "version": "0.3.0",
   "description": "Javascript context managers. With 💙 { @mcsavvy }",
-  "main": "dist/cjs/index.js",
-  "module": "dist/mjs/index.js",
+  "main": "./dist/index.js",
   "exports": {
     ".": {
-      "import": "./dist/mjs/index.js",
-      "require": "./dist/cjs/index.js"
+      "require": "./index.js"
     }
   },
   "scripts": {
     "test": "jest",
-    "prebuild": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
-    "build": "./fixbuild",
-    "cleanbuild": "rm -fr dist/*"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix .",
+    "build": "tsc -b",
+    "distclean": "rm -fr dist"
   },
   "repository": {
     "type": "git",

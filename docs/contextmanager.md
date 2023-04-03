@@ -128,8 +128,7 @@ With(socket("localhost", 8080), sock => {
 This function is used under the hood to convert your generator function into a context manager. You might never need to explicitly use it, but in case you need to, then you can use it like this
 
 ```js
-import { contextmanager } from "contextlib";
-
+const { contextmanager } = require("contextlib");
 const socketmanager = contextmanager(socket);
 const localhost = socketmanager("localhost", 8080);
 

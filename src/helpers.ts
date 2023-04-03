@@ -10,7 +10,7 @@
 import {
     ContextManager,
     ContextError
-} from './types.js'
+} from './types'
 
 /**
  * This acts as a stand-in when a context manager is required.
@@ -69,7 +69,7 @@ function closing<T> (thing: T & { close: () => unknown }): ContextManager<T> {
         enter: () => thing,
 
         exit: () => {
-            thing.close()
+            return thing.close()
         }
     }
 }

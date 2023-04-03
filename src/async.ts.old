@@ -1,0 +1,249 @@
+import {
+    AsyncContextManager,
+    WithResult,
+    AsyncExitFunction,
+    AsyncGeneratorFunction,
+    ContextError
+} from './types'
+
+import { ExitStackBase } from './exitstack'
+import { getattr } from './utils'
+
+type ContextBody<ArgT, ReturnT> = (...args: [ArgT]) => PromiseLike<ReturnT> | ReturnT
+type ExitFunction = ((error?: ContextError) => Promise<void>) | ((error?: ContextError) => Promise<boolean>)
+
+/** context manager class to inherit from.
+ * It returns itself in it's enter method like the default python implementation. */
+export class ContextManagerBase implements ContextManager<ContextManagerBase> {
+    async enter (): Promise<ContextManager<ContextManagerBase>> {
+        return this
+    }
+
+    async exit (): Promise<void> {
+        // pass
+    }
+}
+
+/**
+ * GeneratorContextManager is a context manager that wraps an async generator.
+ * The generator should yield only once. The value yielded is passed to the
+ * body function.
+ *
+ * After the body function returns, the generator is entered again.
+ * This time, the generator should clean up.
+ *
+ * If an error is raised in the body function, the error is thrown at the
+ * point the generator yielded.
+ *
+ * The preferred way of handling errors is to use a try-finally block.
+ *
+ * ```
+ * async function* genFn(<args>){
+ *   // setup
+ *   try {
+ *      yield <value>
+ *      // any error from the body function is thrown here
+ *   }
+ *   finally {
+ *     // cleanup
+ *   }
+ * }
+ * ```
+ *
+ * NOTE:
+ * If the generator does not handle any error raised,
+ * the error would be re-raised when the context is exited.
+ */
+export class GeneratorContextManager<T> implements AsyncContextManager<T> {
+    /** A generator */
+    gen: AsyncGenerator<T>
+    #yielded: boolean
+
+    /** @param gen A generator */
+    constructor (gen: AsyncGenerator<T>) {
+        this.gen = gen
+        this.#yielded = false
+    }
+
+    async enter (): Promise<T> {
+        if (this.#yielded) throw 'cannot re-enter a generator contextmanager'
+        const { value, done } = await this.gen.next()
+        this.#yielded = true
+        if (done ?? false) {
+            throw Error('Generator did not yield!')
+        }
+        return value
+    }
+
+    async exit (error?: ContextError): Promise<boolean> {
+        let result: IteratorResult<T, true | undefined>
+        const hasError = error != undefined
+        if (hasError) {
+            // reraise the error inside the generator
+            result = await this.gen.throw(error)
+            // suppress the error if it was suppressed in the generator
+            if (!(result.done ?? false)) throw "Generator didn't stop after throw"
+            return result.value === true
+        }
+        // clean up
+        result = await this.gen.next()
+        // the generator should be done since it yields only once
+        if (!(result.done ?? false)) { throw new Error('Generator did not stop!') }
+        return true
+    }
+}
+
+/**
+ * asynccontextmanager decorator to wrap a generator function and turn
+ * it into a context manager.
+ *
+ * Typical Usage:
+ * ```
+ * var GeneratorContextManager = contextmanager(async function* genfunc(<args>){
+ *     // setup with <args>
+ *     try {
+ *         yield <value>
+ *     }
+ *     finally {
+ *         // cleanup
+ *     }
+ * })
+ * // GeneratorContextManager still needs to be invoked with <args> to get the context manager.
+ * var cm = await GeneratorContextManager(<args>)
+ * ```
+ * @param func a generator function or any function that returns a generator
+ * @returns a function that returns a GeneratorContextManager when called with the argument
+ * for func */
+export async function contextmanager<T, Args extends unknown[]> (
+    func: AsyncGeneratorFunction<T, Args>
+): Promise<(...args: Args) => Promise<GeneratorContextManager<T>>> {
+    async function wrapper (...args: Args): Promise<GeneratorContextManager<T>> {
+        const gen = await func(...args)
+        return new GeneratorContextManager<T>(gen)
+    }
+    // Object.defineProperty(helper, 'name', { value: func.name || 'generatorcontext' })
+    return wrapper
+}
+
+/**
+ * An async implementation of With.
+ */
+export async function With<T, R = unknown> (
+    manager: AsyncContextManager<T> | AsyncGenerator<T>,
+    body: ContextBody<T, R>): Promise<WithResult<R>> {
+    let cm: AsyncContextManager<T>
+    if (typeof (manager as AsyncGenerator<T>).throw == 'function') {
+        cm = new GeneratorContextManager(manager as AsyncGenerator<T>)
+    } else {
+        cm = manager as AsyncContextManager<T>
+    }
+    if (cm.enter == undefined) { throw Error(`Attribute Error: ${cm} has no enter()`) }
+    if (cm.exit == undefined) { throw Error(`Attribute Error: ${cm} has no exit()`) }
+    const contextvar = await cm.enter()
+    try {
+        const ret = await body(contextvar)
+        await cm.exit()
+        return {
+            completed: true,
+            value: ret
+        }
+    } catch (error) {
+        if (await cm.exit(error) !== true) {
+            throw error
+        }
+        return {
+            completed: false,
+            value: error
+        }
+    }
+}
+
+/**
+ * An async implementation of Use.
+ * It differs in that, due to the limitations of JS generators, exit will not
+ * be awaited.
+ */
+export async function * Use<T> (manager: AsyncContextManager<T>): AsyncGenerator<T> {
+    const val = await manager.enter()
+    try {
+        yield val
+    } finally {
+        // unfortunately there does not appear to be any way to get this to block on promises
+        await manager.exit()
+    }
+}
+
+/**
+ * An async implementation of ExitStack.
+ */
+export class ExitStack extends ExitStackBase implements AsyncContextManager<ExitStack> {
+    /** Registers an async callback with the standard `ContextManager.exit` method signature.
+     *
+     * Can suppress exceptions the same way exit methods can.
+     * Also accepts any object with an `exit` method(registering a call to the method instead of the object)
+    */
+    pushAsync (exit: AsyncExitFunction|{exit: AsyncExitFunction}) {
+        try {
+            const exit_method: AsyncExitFunction = getattr(exit, 'exit')
+            this._pushCmExit(exit_method.bind(exit), false)
+        } catch (error) {
+            this._pushCmExit(exit as ExitFunction, false)
+        }
+        return exit // allow use as a decorator
+    }
+
+    /** Enters the supplied context manager
+     *
+     * If successful, also pushes the exit method as a callback and returns the results
+     * of the enter method
+     */
+    async enterAsyncContext<T>(cm: ContextManager<T>): Promise<T> {
+        const _exit: AsyncExitFunction = getattr(cm, 'exit')
+        const result = await cm.enter()
+        this._pushCmExit(_exit.bind(cm), false)
+        return result
+    }
+
+    /** Registers an arbitrary async callback.
+     *
+     * Cannot suppress exceptions {@link https://github.com/Mcsavvy/contextlib/issues/2}
+     */
+    async callbackAsync (callback: AsyncExitCallback) {
+        this._pushExitCallback(callback, false)
+        return callback // allow use as a decorator
+    }
+
+    async enter () {
+        return this
+    }
+
+    async exit (error?: unknown): Promise<boolean> {
+        const hasError = arguments.length !== 0
+        let suppressed = false
+        let pendingRaise = false
+        // callbacks are invoked in LIFO order to match the behavior of
+        // nested context managers
+        while (this.exit_callbacks.length !== 0) {
+            const [isSync, isCallback, Fn] = this.exit_callbacks.pop()
+            if (Fn === undefined) continue
+            try {
+                if (isCallback) isSync ? Fn() : await Fn()
+                else {
+                    const result = !pendingRaise && (suppressed || !hasError)
+                        ? isSync ? Fn() : await Fn()
+                        : isSync ? Fn(error) : await Fn(error)
+                    if (result === true) {
+                        suppressed = hasError
+                        pendingRaise = false
+                        error = undefined
+                    } else suppressed = !hasError
+                }
+            } catch (e) {
+                suppressed = false
+                pendingRaise = true
+                error = e
+            }
+        } if (pendingRaise) throw error
+        if (hasError) return suppressed
+    }
+}

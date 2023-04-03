@@ -5,7 +5,7 @@
  * - suppress: a context manager that is used to suppress errors in a brilliant way.
  * - closing: a context manager that closes a thing on exit.
  */
-import { ContextManager } from './types.js';
+import { ContextManager } from './types';
 /**
  * This acts as a stand-in when a context manager is required.
  * It does no additional processing.
@@ -30,7 +30,7 @@ declare function timed(logger?: (...args: [number]) => void): ContextManager<voi
 declare function closing<T>(thing: T & {
     close: () => unknown;
 }): ContextManager<T>;
-declare type ErrorType = (new () => Error) | string | RegExp;
+type ErrorType = (new () => Error) | string | RegExp;
 /**
  * This context manager is used to suppress errors raised in contexts that are nested under it...
  *
@@ -41,5 +41,5 @@ declare type ErrorType = (new () => Error) | string | RegExp;
  *   `regexp.test(error.message)`. If the error thrown is a string, then a regexp test is done.
  * + An ErrorConstructor: Then the error would be suppressed if `error instanceof <ErrorConstructor>`
  */
-declare function suppress(...errors: ErrorType[]): ContextManager<void>;
+declare function suppress(...errors: ErrorType[]): ContextManager<ErrorType[]>;
 export { nullcontext, closing, suppress, timed };

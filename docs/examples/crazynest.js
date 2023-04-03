@@ -1,4 +1,4 @@
-import { With } from "../../dist/cjs";
+const With = require("../../dist/index.js").With;
 
 var padding = 0;
 

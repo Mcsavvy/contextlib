@@ -11,17 +11,19 @@
 
 import {
     ContextManager,
+    AsyncContextManager,
     ExitFunction,
+    AsyncExitFunction,
     ContextError
-} from './types.js'
+} from './types'
 
 import {
     getattr
-} from './utils.js'
+} from './utils'
 
-type exit = [boolean, ExitFunction]
+type exit = [boolean, ExitFunction | AsyncExitFunction]
 interface ObjectWithExitMethod {
-    exit: ExitFunction
+    exit: ExitFunction | AsyncExitFunction
 }
 
 /**
@@ -31,22 +33,22 @@ interface ObjectWithExitMethod {
  * */
 class ExitStackBase {
     /* stack of exit functions */
-    _exitfns: exit[]
+    _exitFns: exit[]
 
     constructor () {
-        this._exitfns = []
+        this._exitFns = []
     }
 
-    push_exit_callback (fn: ExitFunction, isSync: boolean): void {
-        this._exitfns.push([isSync, fn])
+    _pushExitCallback (fn: ExitFunction | AsyncExitFunction, isSync: boolean): void {
+        this._exitFns.push([isSync, fn])
     }
 
     /**
      * add a contextmanager's exit method
      * to the stack of exitcallbacks
      */
-    push_cm_exit (fn: ExitFunction, isSync: boolean): void {
-        this.push_exit_callback(fn, isSync)
+    _pushCmExit (fn: ExitFunction | AsyncExitFunction, isSync: boolean): void {
+        this._pushExitCallback(fn, isSync)
     }
 
     /**
@@ -55,8 +57,8 @@ class ExitStackBase {
      */
     popAll (): ExitStackBase {
         const stack: typeof this = Object.create(this)
-        stack._exitfns.push(...this._exitfns)
-        this._exitfns = []
+        stack._exitFns.push(...this._exitFns)
+        this._exitFns = []
         return stack
     }
 
@@ -75,7 +77,7 @@ class ExitStackBase {
             const exitMethod: ExitFunction = getattr(_obj, 'exit')
             return this.push(exitMethod.bind(_obj))
         } catch (error) {
-            this.push_cm_exit(_obj as ExitFunction, true)
+            this._pushCmExit(_obj as ExitFunction, true)
         }
         return _obj as ExitFunction // allow chaining
     }
@@ -90,7 +92,11 @@ class ExitStackBase {
         getattr(cm, 'exit')
         const result = cm.enter()
 
-        this.push_exit_callback((error?: ContextError) => cm.exit(error), true)
+        function exitWrapper (error?: ContextError): unknown {
+            return cm.exit(error)
+        }
+
+        this._pushExitCallback(exitWrapper, true)
         return result
     }
 }
@@ -110,10 +116,66 @@ class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
 
         // callbacks are invoked in LIFO order to match the behavior of
         // nested context managers
-        while (this._exitfns.length > 0) {
-            const [, fn] = this._exitfns.pop() as exit
+        while (this._exitFns.length > 0) {
+            const [, fn] = this._exitFns.pop() as exit
             try {
-                if (fn(error) ?? false) {
+                if ((fn as ExitFunction)(error) == true) {
+                    suppressedError = true
+                    pendingError = false
+                    error = undefined
+                }
+            } catch (err) {
+                pendingError = true
+                error = err
+            }
+        }
+        if (pendingError) { throw error }
+        return hasError && suppressedError
+    }
+}
+
+class AsyncExitStack extends ExitStackBase implements AsyncContextManager<AsyncExitStack> {
+    /**
+     * Enters the supplied context manager.
+     * If successful, also pushes the exit method as a callback and returns the results
+     * of the enter method.
+     *
+     * @param cm - context manager
+     * @returns result of the enter method
+     */
+    async enterAsyncContext<T> (cm: AsyncContextManager<T>): Promise<T> {
+        getattr(cm, 'enter')
+        getattr(cm, 'exit')
+        const result = await cm.enter()
+
+        this._pushExitCallback(
+            async (error?: ContextError) => {
+                return (await cm.exit(error)) as boolean
+            }, false)
+        return result
+    }
+
+    async enter (): Promise<AsyncExitStack> {
+        return this
+    }
+
+    async exit (error?: ContextError): Promise<boolean> {
+        const hasError = error !== undefined
+        let suppressedError = false
+        let pendingError = false
+        let cbSuppress: boolean
+
+        // callbacks are invoked in LIFO order to match the behavior of
+        // nested context managers
+        while (this._exitFns.length > 0) {
+            const [isSync, fn] = this._exitFns.pop() as exit
+            try {
+                if (isSync) {
+                    cbSuppress = (fn as ExitFunction)(error) == true
+                } else {
+                    cbSuppress = await (fn as AsyncExitFunction)(error) == true
+                }
+                if (cbSuppress) {
                     suppressedError = true
                     pendingError = false
                     error = undefined
@@ -129,4 +191,4 @@ class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
 }
 
 export default ExitStack
-export { ExitStackBase }
+export { ExitStack, AsyncExitStack }

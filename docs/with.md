@@ -3,9 +3,9 @@
 ### Syntax
 
 ```js
-import With from "contextlib";
+const { With } = require("contextlib");
 
-With(@contextmanager, @contextbody);
+With(<contextmanager>, <contextbody>;
 ```
 
 ### @contextmanager

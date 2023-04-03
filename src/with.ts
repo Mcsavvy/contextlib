@@ -18,15 +18,21 @@
  * method returns true.
  */
 
-import { GeneratorContextManager } from './generatorcm.js'
+import {
+    GeneratorContextManager,
+    AsyncGeneratorContextManager
+} from './generatorcm'
+
 import {
     ContextManager,
+    AsyncContextManager,
     WithResult
-} from './types.js'
+} from './types'
 
+import { getattr } from './utils'
 
-type ContextBody<ArgT, ReturnT> = (...args?: [ArgT]) => ReturnT
-
+type ContextBody<ArgT, ReturnT> = (...args: [ArgT]) => ReturnT
+type AsyncContextBody<ArgT, ReturnT> = (...args: [ArgT]) => PromiseLike<ReturnT> | ReturnT
 /**
  * With - handles entering and exiting a context
  *
@@ -44,10 +50,8 @@ function With<T, R = unknown> (
     } else {
         cm = manager as ContextManager<T>
     }
-    if (cm.enter == undefined)
-        throw Error("Attribute Error: Object has no enter()")
-    if (cm.exit == undefined)
-        throw Error("Attribute Error: Object has no exit()")
+    if (cm.enter == undefined) { throw Error('Attribute Error: Object has no enter()') }
+    if (cm.exit == undefined) { throw Error('Attribute Error: Object has no exit()') }
 
     const contextvar = cm.enter()
     try {
@@ -58,7 +62,7 @@ function With<T, R = unknown> (
             value: ret
         }
     } catch (error) {
-        if (!(cm.exit(error) ?? false)) { throw error }
+        if (cm.exit(error) !== true) { throw error }
         return {
             completed: false,
             value: error
@@ -66,4 +70,68 @@ function With<T, R = unknown> (
     }
 }
 
+/**
+ * Use constructs a generator that may be used to fulfil the same role as With,
+ * though without the suppression or error handling capabilities.
+ */
+function * Use<T> (manager: ContextManager<T>): Generator<T> {
+    const val = manager.enter()
+    try {
+        yield val
+    } finally {
+        // TODO: block on promises
+        manager.exit()
+    }
+}
+
+/**
+ * An async implementation of Use.
+ * It differs in that, due to the limitations of JS generators, exit will not
+ * be awaited.
+ */
+async function * useAsync<T> (manager: AsyncContextManager<T>): AsyncGenerator<T> {
+    const val = await manager.enter()
+    try {
+        yield val
+    } finally {
+        // unfortunately there does not appear to be any way to get this to block on promises
+        await manager.exit()
+    }
+}
+
+/**
+ * An async implementation of With.
+ */
+async function AWith<T, R = unknown> (
+    manager: AsyncContextManager<T> | AsyncGenerator<T>,
+    body: AsyncContextBody<T, R> | ContextBody<T, R>
+): Promise<WithResult<R>> {
+    let cm: AsyncContextManager<T>
+    if (typeof (manager as AsyncGenerator<T>).throw == 'function') {
+        cm = new AsyncGeneratorContextManager(manager as AsyncGenerator<T>)
+    } else {
+        cm = manager as AsyncContextManager<T>
+    }
+    getattr(cm, 'enter')
+    getattr(cm, 'exit')
+    const contextvar = await cm.enter()
+    try {
+        const ret = await body(contextvar)
+        await cm.exit()
+        return {
+            completed: true,
+            value: ret
+        }
+    } catch (error) {
+        if (await cm.exit(error) !== true) {
+            throw error
+        }
+        return {
+            completed: false,
+            value: error
+        }
+    }
+}
+
+export { Use, With, AWith as withAsync, useAsync }
 export default With

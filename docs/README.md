@@ -49,19 +49,10 @@ Read the [developer guide](guide.md) on how to use contextmanagers in your proje
 The latest version of contextlib can be downloaded via `npm`
 ```
 npm install contextlib
-```
-To use contextlib, you can import it in two different ways
-
-1. As an ES module
-```js
-import With from "contextlib";
-```
-2. As a commonjs
 ```js
 const { With } = require("contextlib");
 ```
 
-> The above two methods of importing are fully supported, although this documentation uses the `import` method more frequently.
 
 ### Cloning From Github
 The stable release of contextlib would be available on the `main` branch. The `dev` branch may contain code that isn't **fully tested**.
@@ -70,13 +61,7 @@ The stable release of contextlib would be available on the `main` branch. The `d
 git clone https://github.com/mcsavvy/contextlib.git
 cd contextlib
 ```
-To use contextlib, you can import it in two different ways
 
-1. As an ES module
-```js
-import With from ".";
-```
-2. As a commonjs
 ```js
 const { With } = require(".");
 ```

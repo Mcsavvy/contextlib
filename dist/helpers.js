@@ -1,3 +1,4 @@
+"use strict";
 /* eslint-disable import/no-unresolved */
 /**
  * This module contains a bunch of useful context managers.
@@ -6,6 +7,8 @@
  * - suppress: a context manager that is used to suppress errors in a brilliant way.
  * - closing: a context manager that closes a thing on exit.
  */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.timed = exports.suppress = exports.closing = exports.nullcontext = void 0;
 /**
  * This acts as a stand-in when a context manager is required.
  * It does no additional processing.
@@ -18,6 +21,7 @@ class nullcontext {
         return false;
     }
 }
+exports.nullcontext = nullcontext;
 /**
  * logs elapsed time in this format `HH:mm:ss:SSS`
  * @param time the time to log
@@ -48,6 +52,7 @@ function timed(logger = timelogger) {
         }
     };
 }
+exports.timed = timed;
 /**
  * Context manager that automatically closes something at the end of the body.
  * Usable with async closers.
@@ -57,10 +62,11 @@ function closing(thing) {
     return {
         enter: () => thing,
         exit: () => {
-            thing.close();
+            return thing.close();
         }
     };
 }
+exports.closing = closing;
 /**
  * This context manager is used to suppress errors raised in contexts that are nested under it...
  *
@@ -97,6 +103,7 @@ function suppress(...errors) {
         }
         return errors.find(predicate) !== undefined;
     }
-    return { enter: () => nullcontext.prototype.enter, exit };
+    return { enter: () => errors, exit };
 }
-export { nullcontext, closing, suppress, timed };
+exports.suppress = suppress;
+//# sourceMappingURL=helpers.js.map

@@ -1,5 +1,8 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getattr = void 0;
 const sentinel = Symbol('void');
-export function getattr(_obj, _key, _default = sentinel) {
+function getattr(_obj, _key, _default = sentinel) {
     if (_key in _obj) {
         return _obj[_key];
     }
@@ -8,3 +11,5 @@ export function getattr(_obj, _key, _default = sentinel) {
     }
     throw `AttributeError: object has no attribute "${_key.toString()}"`;
 }
+exports.getattr = getattr;
+//# sourceMappingURL=utils.js.map

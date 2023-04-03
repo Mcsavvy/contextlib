@@ -1,8 +1,8 @@
-import With from "./with.js"
-import contextmanager from "./generatorcm.js"
-import ExitStack from "./exitstack.js"
+import With, {Use, useAsync, withAsync} from "./with"
+import contextmanager, {asynccontextmanager} from "./generatorcm"
+import ExitStack, {AsyncExitStack} from "./exitstack"
 export default With
-export { contextmanager, ExitStack, With }
-export * from './types.js'
-export * from './utils.js'
-export * from './helpers.js'
+export { contextmanager, ExitStack, With, Use, asynccontextmanager, AsyncExitStack, useAsync, withAsync }
+export * from './types'
+export * from './utils'
+export * from './helpers'
