@@ -3,11 +3,6 @@
   "version": "0.3.0",
   "description": "Javascript context managers. With 💙 { @mcsavvy }",
   "main": "./dist/index.js",
-  "exports": {
-    ".": {
-      "require": "./index.js"
-    }
-  },
   "scripts": {
     "test": "jest",
     "lint": "eslint",
