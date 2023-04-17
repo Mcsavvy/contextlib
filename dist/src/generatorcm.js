@@ -27,7 +27,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
 };
 var _AsyncGeneratorContextManager_yielded;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.asynccontextmanager = exports.contextmanager = exports.AsyncGeneratorContextManager = exports.GeneratorContextManager = void 0;
+exports.contextmanagerAsync = exports.contextmanager = exports.AsyncGeneratorContextManager = exports.GeneratorContextManager = void 0;
 /**
  * GeneratorContextManager is a context manager that wraps a generator.
  * The generator should yield only once. The value yielded is passed to the
@@ -44,6 +44,10 @@ class GeneratorContextManager {
         this.gen = gen;
         this._yielded = false;
     }
+    /**
+     * Enter a generator contextmanager
+     * @returns the first value yielded from the generator function
+     */
     enter() {
         // prevent a generator cm from being re-entered
         if (this._yielded) {
@@ -56,6 +60,11 @@ class GeneratorContextManager {
         }
         return value;
     }
+    /**
+     * Exit a generator context manager
+     * @param error
+     * @returns anything
+     */
     exit(error) {
         const hasError = error !== undefined;
         let done, value;
@@ -124,6 +133,10 @@ class AsyncGeneratorContextManager {
         this.gen = gen;
         __classPrivateFieldSet(this, _AsyncGeneratorContextManager_yielded, false, "f");
     }
+    /**
+     * Enter an async generator contextmanager
+     * @returns the first value yielded from the generator function
+     */
     async enter() {
         if (__classPrivateFieldGet(this, _AsyncGeneratorContextManager_yielded, "f"))
             throw 'cannot re-enter a generator contextmanager';
@@ -134,6 +147,11 @@ class AsyncGeneratorContextManager {
         __classPrivateFieldSet(this, _AsyncGeneratorContextManager_yielded, true, "f");
         return value;
     }
+    /**
+     * Exit an async generator context manager
+     * @param error
+     * @returns anything
+     */
     async exit(error) {
         var _a, _b;
         let result;
@@ -162,7 +180,7 @@ _AsyncGeneratorContextManager_yielded = new WeakMap();
  * @param func a generator function or any function that returns a generator
  * @returns a function that returns a GeneratorContextManager when called with the argument
  * for func */
-function asynccontextmanager(func) {
+function contextmanagerAsync(func) {
     async function wrapper(...args) {
         const gen = func(...args);
         return new AsyncGeneratorContextManager(gen);
@@ -170,6 +188,5 @@ function asynccontextmanager(func) {
     // Object.defineProperty(helper, 'name', { value: func.name || 'generatorcontext' })
     return wrapper;
 }
-exports.asynccontextmanager = asynccontextmanager;
-exports.default = contextmanager;
+exports.contextmanagerAsync = contextmanagerAsync;
 //# sourceMappingURL=generatorcm.js.map

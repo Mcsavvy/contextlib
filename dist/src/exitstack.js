@@ -11,7 +11,6 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AsyncExitStack = exports.ExitStack = void 0;
-const utils_1 = require("./utils");
 /**
  * A base class for ExitStack
  * &
@@ -21,6 +20,11 @@ class ExitStackBase {
     constructor() {
         this._exitFns = [];
     }
+    /**
+     * Push an exit function to the stack
+     * @param {ExitFunction | AsyncExitFunction} fn
+     * @param {boolean} isSync
+     */
     _pushExitCallback(fn, isSync) {
         this._exitFns.push([isSync, fn]);
     }
@@ -43,32 +47,34 @@ class ExitStackBase {
     }
     /**
      * Register an exit callback.
-     * Accepts a function with the standard "exit" callback signature:
+     * @param {ExitFunction | ObjectWithExitMethod} _obj a function with the standard "exit" callback signature:
      * `function(error): any {...}`
      *
-     * Also accepts any object with an "exit" method and registers a call to the
+     * Or any object with an "exit" method and registers a call to the
      * method instead of the object.
      *
-     * > This callback can suppress errors by returning `true`
+     * @returns {ExitFunction | ObjectWithExitMethod} what ever was passed as _obj
     */
     push(_obj) {
-        try {
-            const exitMethod = (0, utils_1.getattr)(_obj, 'exit');
-            return this.push(exitMethod.bind(_obj));
+        if (_obj.hasOwnProperty("exit")) {
+            this._pushCmExit(_obj.exit.bind(_obj), true);
         }
-        catch (error) {
+        else {
             this._pushCmExit(_obj, true);
         }
-        return _obj; // allow chaining
+        return _obj;
     }
     /**
-     * Enters the supplied context manager.
-     * If successful, also pushes the exit method as a callback and returns the results
-     * of the enter method.
+     * Enters the supplied context manager then pushes the exit method as a callback.
+     * @param {ContextManager} cm a contextmanager
+     *
+     * @returns the result of the enter() method
      */
     enterContext(cm) {
-        (0, utils_1.getattr)(cm, 'enter');
-        (0, utils_1.getattr)(cm, 'exit');
+        if (cm['enter'] == undefined)
+            throw Error(`contextmanager has no enter() method`);
+        if (cm['exit'] == undefined)
+            throw Error(`contextmanager has no exit() method`);
         const result = cm.enter();
         function exitWrapper(error) {
             return cm.exit(error);
@@ -78,9 +84,21 @@ class ExitStackBase {
     }
 }
 class ExitStack extends ExitStackBase {
+    /**
+     * Enter the exitstack's context.
+     * @returns the exitstack.
+     */
     enter() {
         return this;
     }
+    /**
+     * Enters the supplied context manager.
+     * If successful, also pushes the exit method as a callback and returns the results
+     * of the enter method.
+     *
+     * @param cm - context manager
+     * @returns result of the enter method
+     */
     exit(error) {
         const hasError = error !== undefined;
         let suppressedError, pendingError;
@@ -119,17 +137,30 @@ class AsyncExitStack extends ExitStackBase {
      * @returns result of the enter method
      */
     async enterAsyncContext(cm) {
-        (0, utils_1.getattr)(cm, 'enter');
-        (0, utils_1.getattr)(cm, 'exit');
+        if (cm['enter'] == undefined)
+            throw Error(`contextmanager has no enter() method`);
+        if (cm['exit'] == undefined)
+            throw Error(`contextmanager has no exit() method`);
         const result = await cm.enter();
         this._pushExitCallback(async (error) => {
             return (await cm.exit(error));
         }, false);
         return result;
     }
+    /**
+     * Enter the exitstack's context.
+     * @returns the exitstack.
+     */
     async enter() {
         return this;
     }
+    /**
+     * Exit the exitstack's context.
+     * All contexts and callback functions in the exitstack's stack would
+     * be called in reverse order of how they were entered.
+     * @param error
+     * @returns anything (true suppresses error)
+     */
     async exit(error) {
         const hasError = error !== undefined;
         let suppressedError = false;
@@ -164,5 +195,4 @@ class AsyncExitStack extends ExitStackBase {
     }
 }
 exports.AsyncExitStack = AsyncExitStack;
-exports.default = ExitStack;
 //# sourceMappingURL=exitstack.js.map

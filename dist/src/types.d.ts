@@ -1,6 +1,6 @@
-type ContextError = Error | string | unknown;
-type ExitFunction = (error?: ContextError) => unknown;
-type AsyncExitFunction = (error?: ContextError) => Promise<unknown>;
+declare type ContextError = Error | string | unknown;
+declare type ExitFunction = (error?: ContextError) => unknown;
+declare type AsyncExitFunction = (error?: ContextError) => Promise<unknown>;
 interface ContextManager<T = unknown> {
     /**
      * this method is called when the context is being entered, the return value is
@@ -29,7 +29,7 @@ interface AsyncContextManager<T = unknown> {
      */
     exit: AsyncExitFunction;
 }
-type WithResult<BodyReturn> = {
+declare type WithResult<BodyReturn> = {
     completed: true;
     value: BodyReturn;
 } | {

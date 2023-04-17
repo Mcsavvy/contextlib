@@ -31,15 +31,16 @@ var __asyncGenerator = (this && this.__asyncGenerator) || function (thisArg, _ar
     function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.useAsync = exports.withAsync = exports.With = exports.Use = void 0;
+exports.useAsync = exports.Use = exports.withAsync = exports.With = void 0;
 const generatorcm_1 = require("./generatorcm");
-const utils_1 = require("./utils");
 /**
  * With - handles entering and exiting a context
  *
  * @param manager the context manager for this context
  * @param body a function that'll be used as contextmanager's
  * body
+ * @returns {WithResult} an object that shows the status of the context
+ * at exit
  * */
 function With(manager, body) {
     let cm;
@@ -49,12 +50,10 @@ function With(manager, body) {
     else {
         cm = manager;
     }
-    if (cm.enter == undefined) {
-        throw Error('Attribute Error: Object has no enter()');
-    }
-    if (cm.exit == undefined) {
-        throw Error('Attribute Error: Object has no exit()');
-    }
+    if (cm['enter'] == undefined)
+        throw Error(`contextmanager has no enter() method`);
+    if (cm['exit'] == undefined)
+        throw Error(`contextmanager has no exit() method`);
     const contextvar = cm.enter();
     try {
         const ret = body(contextvar);
@@ -78,6 +77,10 @@ exports.With = With;
 /**
  * Use constructs a generator that may be used to fulfil the same role as With,
  * though without the suppression or error handling capabilities.
+ *
+ * @param {ContextManager<T>} manager
+ * @returns {Generator<T>} a generator function that yields the value
+ * returned from the context manager's enter()
  */
 function* Use(manager) {
     const val = manager.enter();
@@ -94,6 +97,13 @@ exports.Use = Use;
  * An async implementation of Use.
  * It differs in that, due to the limitations of JS generators, exit will not
  * be awaited.
+ *
+ * Use constructs a generator that may be used to fulfil the same role as With,
+ * though without the suppression or error handling capabilities.
+ *
+ * @param {ContextManager<T>} manager
+ * @returns {Generator<T>} a generator function that yields the value
+ * returned from the context manager's enter()
  */
 function useAsync(manager) {
     return __asyncGenerator(this, arguments, function* useAsync_1() {
@@ -110,8 +120,15 @@ function useAsync(manager) {
 exports.useAsync = useAsync;
 /**
  * An async implementation of With.
- */
-async function AWith(manager, body) {
+ * Handles entering and exiting a context
+ *
+ * @param manager the context manager for this context
+ * @param body a function that'll be used as contextmanager's
+ * body
+ * @returns {WithResult} an object that shows the status of the context
+ * at exit
+ * */
+async function withAsync(manager, body) {
     let cm;
     if (typeof manager.throw == 'function') {
         cm = new generatorcm_1.AsyncGeneratorContextManager(manager);
@@ -119,8 +136,10 @@ async function AWith(manager, body) {
     else {
         cm = manager;
     }
-    (0, utils_1.getattr)(cm, 'enter');
-    (0, utils_1.getattr)(cm, 'exit');
+    if (cm['enter'] == undefined)
+        throw Error(`contextmanager has no enter() method`);
+    if (cm['exit'] == undefined)
+        throw Error(`contextmanager has no exit() method`);
     const contextvar = await cm.enter();
     try {
         const ret = await body(contextvar);
@@ -140,6 +159,5 @@ async function AWith(manager, body) {
         };
     }
 }
-exports.withAsync = AWith;
-exports.default = With;
+exports.withAsync = withAsync;
 //# sourceMappingURL=with.js.map

@@ -8,7 +8,7 @@
  * If the error isn't suppressed, it is thrown when the contextmanager exits.
  */
 import { ContextManager, AsyncContextManager, ExitFunction, AsyncExitFunction, ContextError } from './types';
-type exit = [boolean, ExitFunction | AsyncExitFunction];
+declare type exit = [boolean, ExitFunction | AsyncExitFunction];
 interface ObjectWithExitMethod {
     exit: ExitFunction | AsyncExitFunction;
 }
@@ -20,6 +20,11 @@ interface ObjectWithExitMethod {
 declare class ExitStackBase {
     _exitFns: exit[];
     constructor();
+    /**
+     * Push an exit function to the stack
+     * @param {ExitFunction | AsyncExitFunction} fn
+     * @param {boolean} isSync
+     */
     _pushExitCallback(fn: ExitFunction | AsyncExitFunction, isSync: boolean): void;
     /**
      * add a contextmanager's exit method
@@ -31,26 +36,30 @@ declare class ExitStackBase {
      * transferring it to a new ExitStack
      */
     popAll(): ExitStackBase;
+    push(_obj: ExitFunction): ExitFunction;
+    push(_obj: ObjectWithExitMethod): ObjectWithExitMethod;
     /**
-     * Register an exit callback.
-     * Accepts a function with the standard "exit" callback signature:
-     * `function(error): any {...}`
+     * Enters the supplied context manager then pushes the exit method as a callback.
+     * @param {ContextManager} cm a contextmanager
      *
-     * Also accepts any object with an "exit" method and registers a call to the
-     * method instead of the object.
-     *
-     * > This callback can suppress errors by returning `true`
-    */
-    push(_obj: ExitFunction | ObjectWithExitMethod): ExitFunction;
-    /**
-     * Enters the supplied context manager.
-     * If successful, also pushes the exit method as a callback and returns the results
-     * of the enter method.
+     * @returns the result of the enter() method
      */
     enterContext<T>(cm: ContextManager<T>): T;
 }
 declare class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
+    /**
+     * Enter the exitstack's context.
+     * @returns the exitstack.
+     */
     enter(): ExitStack;
+    /**
+     * Enters the supplied context manager.
+     * If successful, also pushes the exit method as a callback and returns the results
+     * of the enter method.
+     *
+     * @param cm - context manager
+     * @returns result of the enter method
+     */
     exit(error?: ContextError): boolean;
 }
 declare class AsyncExitStack extends ExitStackBase implements AsyncContextManager<AsyncExitStack> {
@@ -63,8 +72,18 @@ declare class AsyncExitStack extends ExitStackBase implements AsyncContextManage
      * @returns result of the enter method
      */
     enterAsyncContext<T>(cm: AsyncContextManager<T>): Promise<T>;
+    /**
+     * Enter the exitstack's context.
+     * @returns the exitstack.
+     */
     enter(): Promise<AsyncExitStack>;
-    exit(error?: ContextError): Promise<boolean>;
+    /**
+     * Exit the exitstack's context.
+     * All contexts and callback functions in the exitstack's stack would
+     * be called in reverse order of how they were entered.
+     * @param error
+     * @returns anything (true suppresses error)
+     */
+    exit(error?: ContextError): Promise<unknown>;
 }
-export default ExitStack;
 export { ExitStack, AsyncExitStack };

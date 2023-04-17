@@ -13,10 +13,10 @@
  * This error can be handled using a `try-finally` block.
  */
 import { ContextManager, AsyncContextManager, ContextError } from './types';
-type GeneratorFunction<Yield, Args extends unknown[]> = (...args: Args) => Generator<Yield>;
-type GeneratorFunctionWrapper<Yield, Args extends unknown[]> = (...args: Args) => GeneratorContextManager<Yield>;
-type AsyncGeneratorFunction<Yield, Args extends unknown[]> = (...args: Args) => AsyncGenerator<Yield>;
-type AsyncGeneratorFunctionWrapper<Yield, Args extends unknown[]> = (...args: Args) => Promise<AsyncGeneratorContextManager<Yield>>;
+declare type GeneratorFunction<Yield, Args extends unknown[]> = (...args: Args) => Generator<Yield>;
+declare type GeneratorFunctionWrapper<Yield, Args extends unknown[]> = (...args: Args) => GeneratorContextManager<Yield>;
+declare type AsyncGeneratorFunction<Yield, Args extends unknown[]> = (...args: Args) => AsyncGenerator<Yield>;
+declare type AsyncGeneratorFunctionWrapper<Yield, Args extends unknown[]> = (...args: Args) => Promise<AsyncGeneratorContextManager<Yield>>;
 /**
  * GeneratorContextManager is a context manager that wraps a generator.
  * The generator should yield only once. The value yielded is passed to the
@@ -32,7 +32,16 @@ declare class GeneratorContextManager<T> implements ContextManager<T> {
     gen: Generator<T>;
     _yielded: boolean;
     constructor(gen: Generator<T>);
+    /**
+     * Enter a generator contextmanager
+     * @returns the first value yielded from the generator function
+     */
     enter(): T;
+    /**
+     * Exit a generator context manager
+     * @param error
+     * @returns anything
+     */
     exit(error?: ContextError): unknown;
 }
 /**
@@ -58,7 +67,16 @@ declare class AsyncGeneratorContextManager<T> implements AsyncContextManager<T> 
     gen: AsyncGenerator<T>;
     /** @param gen A generator */
     constructor(gen: AsyncGenerator<T>);
+    /**
+     * Enter an async generator contextmanager
+     * @returns the first value yielded from the generator function
+     */
     enter(): Promise<T>;
+    /**
+     * Exit an async generator context manager
+     * @param error
+     * @returns anything
+     */
     exit(error?: ContextError): Promise<boolean>;
 }
 /**
@@ -66,6 +84,5 @@ declare class AsyncGeneratorContextManager<T> implements AsyncContextManager<T> 
  * @param func a generator function or any function that returns a generator
  * @returns a function that returns a GeneratorContextManager when called with the argument
  * for func */
-declare function asynccontextmanager<T, Args extends unknown[]>(func: AsyncGeneratorFunction<T, Args>): AsyncGeneratorFunctionWrapper<T, Args>;
-export default contextmanager;
-export { GeneratorContextManager, AsyncGeneratorContextManager, contextmanager, asynccontextmanager };
+declare function contextmanagerAsync<T, Args extends unknown[]>(func: AsyncGeneratorFunction<T, Args>): AsyncGeneratorFunctionWrapper<T, Args>;
+export { GeneratorContextManager, AsyncGeneratorContextManager, contextmanager, contextmanagerAsync };
