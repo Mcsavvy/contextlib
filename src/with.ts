@@ -29,16 +29,17 @@ import {
     WithResult
 } from './types'
 
-import { getattr } from './utils'
-
 type ContextBody<ArgT, ReturnT> = (...args: [ArgT]) => ReturnT
 type AsyncContextBody<ArgT, ReturnT> = (...args: [ArgT]) => PromiseLike<ReturnT> | ReturnT
+
 /**
  * With - handles entering and exiting a context
  *
  * @param manager the context manager for this context
  * @param body a function that'll be used as contextmanager's
  * body
+ * @returns {WithResult} an object that shows the status of the context
+ * at exit
  * */
 function With<T, R = unknown> (
     manager: ContextManager<T> | Generator<T>,
@@ -50,8 +51,10 @@ function With<T, R = unknown> (
     } else {
         cm = manager as ContextManager<T>
     }
-    if (cm.enter == undefined) { throw Error('Attribute Error: Object has no enter()') }
-    if (cm.exit == undefined) { throw Error('Attribute Error: Object has no exit()') }
+    if (cm['enter'] == undefined)
+        throw Error(`contextmanager has no enter() method`)
+    if (cm['exit'] == undefined)
+        throw Error(`contextmanager has no exit() method`)
 
     const contextvar = cm.enter()
     try {
@@ -73,6 +76,10 @@ function With<T, R = unknown> (
 /**
  * Use constructs a generator that may be used to fulfil the same role as With,
  * though without the suppression or error handling capabilities.
+ * 
+ * @param {ContextManager<T>} manager
+ * @returns {Generator<T>} a generator function that yields the value
+ * returned from the context manager's enter()
  */
 function * Use<T> (manager: ContextManager<T>): Generator<T> {
     const val = manager.enter()
@@ -88,6 +95,13 @@ function * Use<T> (manager: ContextManager<T>): Generator<T> {
  * An async implementation of Use.
  * It differs in that, due to the limitations of JS generators, exit will not
  * be awaited.
+ *
+ * Use constructs a generator that may be used to fulfil the same role as With,
+ * though without the suppression or error handling capabilities.
+ *
+ * @param {ContextManager<T>} manager
+ * @returns {Generator<T>} a generator function that yields the value
+ * returned from the context manager's enter()
  */
 async function * useAsync<T> (manager: AsyncContextManager<T>): AsyncGenerator<T> {
     const val = await manager.enter()
@@ -101,8 +115,15 @@ async function * useAsync<T> (manager: AsyncContextManager<T>): AsyncGenerator<T
 
 /**
  * An async implementation of With.
- */
-async function AWith<T, R = unknown> (
+ * Handles entering and exiting a context
+ *
+ * @param manager the context manager for this context
+ * @param body a function that'll be used as contextmanager's
+ * body
+ * @returns {WithResult} an object that shows the status of the context
+ * at exit
+ * */
+async function withAsync<T, R = unknown> (
     manager: AsyncContextManager<T> | AsyncGenerator<T>,
     body: AsyncContextBody<T, R> | ContextBody<T, R>
 ): Promise<WithResult<R>> {
@@ -112,8 +133,10 @@ async function AWith<T, R = unknown> (
     } else {
         cm = manager as AsyncContextManager<T>
     }
-    getattr(cm, 'enter')
-    getattr(cm, 'exit')
+    if (cm['enter'] == undefined)
+        throw Error(`contextmanager has no enter() method`)
+    if (cm['exit'] == undefined)
+        throw Error(`contextmanager has no exit() method`)
     const contextvar = await cm.enter()
     try {
         const ret = await body(contextvar)
@@ -133,5 +156,4 @@ async function AWith<T, R = unknown> (
     }
 }
 
-export { Use, With, AWith as withAsync, useAsync }
-export default With
+export {With, withAsync, Use, useAsync }

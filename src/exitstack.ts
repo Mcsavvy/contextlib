@@ -17,9 +17,6 @@ import {
     ContextError
 } from './types'
 
-import {
-    getattr
-} from './utils'
 
 type exit = [boolean, ExitFunction | AsyncExitFunction]
 interface ObjectWithExitMethod {
@@ -39,6 +36,11 @@ class ExitStackBase {
         this._exitFns = []
     }
 
+    /**
+     * Push an exit function to the stack
+     * @param {ExitFunction | AsyncExitFunction} fn
+     * @param {boolean} isSync
+     */
     _pushExitCallback (fn: ExitFunction | AsyncExitFunction, isSync: boolean): void {
         this._exitFns.push([isSync, fn])
     }
@@ -62,34 +64,42 @@ class ExitStackBase {
         return stack
     }
 
+    push(_obj: ExitFunction): ExitFunction
+    push(_obj: ObjectWithExitMethod): ObjectWithExitMethod
+
     /**
      * Register an exit callback.
-     * Accepts a function with the standard "exit" callback signature:
+     * @param {ExitFunction | ObjectWithExitMethod} _obj a function with the standard "exit" callback signature:
      * `function(error): any {...}`
      *
-     * Also accepts any object with an "exit" method and registers a call to the
+     * Or any object with an "exit" method and registers a call to the
      * method instead of the object.
      *
-     * > This callback can suppress errors by returning `true`
+     * @returns {ExitFunction | ObjectWithExitMethod} what ever was passed as _obj
     */
-    push (_obj: ExitFunction | ObjectWithExitMethod): ExitFunction {
-        try {
-            const exitMethod: ExitFunction = getattr(_obj, 'exit')
-            return this.push(exitMethod.bind(_obj))
-        } catch (error) {
+    push(_obj: ExitFunction | ObjectWithExitMethod): ExitFunction | ObjectWithExitMethod {
+        if ((_obj as ObjectWithExitMethod).hasOwnProperty("exit")) {
+            this._pushCmExit(
+                ((_obj as ObjectWithExitMethod).exit as ExitFunction).bind(_obj),
+                true
+            )
+        } else {
             this._pushCmExit(_obj as ExitFunction, true)
         }
-        return _obj as ExitFunction // allow chaining
+        return _obj
     }
 
     /**
-     * Enters the supplied context manager.
-     * If successful, also pushes the exit method as a callback and returns the results
-     * of the enter method.
+     * Enters the supplied context manager then pushes the exit method as a callback.
+     * @param {ContextManager} cm a contextmanager
+     * 
+     * @returns the result of the enter() method
      */
     enterContext<T>(cm: ContextManager<T>): T {
-        getattr(cm, 'enter')
-        getattr(cm, 'exit')
+        if (cm['enter'] == undefined)
+            throw Error(`contextmanager has no enter() method`)
+        if (cm['exit'] == undefined)
+            throw Error(`contextmanager has no exit() method`)
         const result = cm.enter()
 
         function exitWrapper (error?: ContextError): unknown {
@@ -102,10 +112,22 @@ class ExitStackBase {
 }
 
 class ExitStack extends ExitStackBase implements ContextManager<ExitStack> {
+    /**
+     * Enter the exitstack's context.
+     * @returns the exitstack.
+     */
     enter (): ExitStack {
         return this
     }
 
+    /**
+     * Enters the supplied context manager.
+     * If successful, also pushes the exit method as a callback and returns the results
+     * of the enter method.
+     *
+     * @param cm - context manager
+     * @returns result of the enter method
+     */
     exit (error?: ContextError): boolean {
         const hasError = error !== undefined
         let
@@ -144,8 +166,10 @@ class AsyncExitStack extends ExitStackBase implements AsyncContextManager<AsyncE
      * @returns result of the enter method
      */
     async enterAsyncContext<T> (cm: AsyncContextManager<T>): Promise<T> {
-        getattr(cm, 'enter')
-        getattr(cm, 'exit')
+        if (cm['enter'] == undefined)
+            throw Error(`contextmanager has no enter() method`)
+        if (cm['exit'] == undefined)
+            throw Error(`contextmanager has no exit() method`)
         const result = await cm.enter()
 
         this._pushExitCallback(
@@ -155,11 +179,22 @@ class AsyncExitStack extends ExitStackBase implements AsyncContextManager<AsyncE
         return result
     }
 
+    /**
+     * Enter the exitstack's context.
+     * @returns the exitstack.
+     */
     async enter (): Promise<AsyncExitStack> {
         return this
     }
 
-    async exit (error?: ContextError): Promise<boolean> {
+    /**
+     * Exit the exitstack's context.
+     * All contexts and callback functions in the exitstack's stack would
+     * be called in reverse order of how they were entered.
+     * @param error 
+     * @returns anything (true suppresses error)
+     */
+    async exit (error?: ContextError): Promise<unknown> {
         const hasError = error !== undefined
         let suppressedError = false
         let pendingError = false
@@ -189,6 +224,4 @@ class AsyncExitStack extends ExitStackBase implements AsyncContextManager<AsyncE
         return hasError && suppressedError
     }
 }
-
-export default ExitStack
 export { ExitStack, AsyncExitStack }

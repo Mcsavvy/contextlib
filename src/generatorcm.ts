@@ -48,6 +48,10 @@ implements ContextManager<T> {
         this._yielded = false
     }
 
+    /**
+     * Enter a generator contextmanager
+     * @returns the first value yielded from the generator function
+     */
     enter (): T {
         // prevent a generator cm from being re-entered
         if (this._yielded) { throw 'cannot re-enter a generator contextmanager' }
@@ -58,6 +62,11 @@ implements ContextManager<T> {
         return value
     }
 
+    /**
+     * Exit a generator context manager
+     * @param error 
+     * @returns anything
+     */
     exit (error?: ContextError): unknown {
         const hasError = error !== undefined
         let done, value
@@ -122,6 +131,10 @@ implements AsyncContextManager<T> {
         this.#yielded = false
     }
 
+    /**
+     * Enter an async generator contextmanager
+     * @returns the first value yielded from the generator function
+     */
     async enter (): Promise<T> {
         if (this.#yielded) throw 'cannot re-enter a generator contextmanager'
         const { value, done } = await this.gen.next()
@@ -132,6 +145,11 @@ implements AsyncContextManager<T> {
         return value
     }
 
+    /**
+     * Exit an async generator context manager
+     * @param error 
+     * @returns anything
+     */
     async exit (error?: ContextError): Promise<boolean> {
         let result: IteratorResult<T, true | undefined>
         const hasError = error != undefined
@@ -155,7 +173,7 @@ implements AsyncContextManager<T> {
  * @param func a generator function or any function that returns a generator
  * @returns a function that returns a GeneratorContextManager when called with the argument
  * for func */
-function asynccontextmanager<T, Args extends unknown[]> (
+function contextmanagerAsync<T, Args extends unknown[]> (
     func: AsyncGeneratorFunction<T, Args>
 ): AsyncGeneratorFunctionWrapper<T, Args> {
     async function wrapper (...args: Args): Promise<AsyncGeneratorContextManager<T>> {
@@ -166,10 +184,10 @@ function asynccontextmanager<T, Args extends unknown[]> (
     return wrapper
 }
 
-export default contextmanager
+
 export {
     GeneratorContextManager,
     AsyncGeneratorContextManager,
     contextmanager,
-    asynccontextmanager
+    contextmanagerAsync
 }

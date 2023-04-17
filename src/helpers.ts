@@ -9,6 +9,7 @@
 
 import {
     ContextManager,
+    AsyncContextManager,
     ContextError
 } from './types'
 
@@ -60,15 +61,56 @@ function timed (logger: (...args: [number]) => void = timelogger
 }
 
 /**
+ * This function returns a context manager that keeps track of the time it takes
+ * to execute the body of the context.
+ * @param {(...args: [number]) => unknown} logger a function that logs elapsed time.
+ * logger would be called with the elasped time in milliseconds.
+ * Defaults to {@link timelogger}
+ */
+function timedAsync (logger: (...args: [number]) => void = timelogger
+): AsyncContextManager<void> {
+    let start: number
+    return {
+        async enter() {
+            start = Date.now()
+        },
+        async exit () {
+            logger(Date.now() - start)
+        }
+    }
+}
+
+
+/**
  * Context manager that automatically closes something at the end of the body.
  * Usable with async closers.
  * @param thing any object that has a `close` method.
+ * @returns a contextmanager
  */
 function closing<T> (thing: T & { close: () => unknown }): ContextManager<T> {
     return {
         enter: () => thing,
 
         exit: () => {
+            return thing.close()
+        }
+    }
+}
+
+
+/**
+ * Context manager that automatically closes something at the end of the body.
+ * Usable with async closers.
+ * @param thing any object that has a `close` method.
+ * @returns {AsyncContextManager} a contextmanager
+ */
+function closingAsync<T> (thing: T & { close: () => unknown }): AsyncContextManager<T> {
+    return {
+        async enter() {
+            return thing
+        },
+
+        async exit() {
             return thing.close()
         }
     }
@@ -102,9 +144,38 @@ function suppress (...errors: ErrorType[]): ContextManager<ErrorType[]> {
     return { enter: () => errors, exit }
 }
 
+/**
+ * This context manager is used to suppress errors raised in contexts that are nested under it...
+ *
+ * It accepts an arbitrary number of arguments, with could be
+ * + A string: If the error thrown is an instanceof `Error`, the error would be suppressed if
+ *   `error.message === string`. If the error thrown is a string, then an equality check is done.
+ * + A regexp: If the error thrown is an instanceof `Error`, the error would be suppressed if
+ *   `regexp.test(error.message)`. If the error thrown is a string, then a regexp test is done.
+ * + An ErrorConstructor: Then the error would be suppressed if `error instanceof <ErrorConstructor>`
+ */
+function suppressAsync(...errors: ErrorType[]): AsyncContextManager<AsyncContextManager> {
+    async function exit (error?: ContextError): Promise<boolean> {
+        function predicate (suppressed: ErrorType): boolean {
+            if (typeof error === 'string') {
+                if (typeof suppressed.valueOf() === 'string') { return suppressed == error } else if (suppressed.constructor === RegExp) { return suppressed.test(error) }
+            } else if (error instanceof Error) {
+                if (typeof suppressed.valueOf() === 'string') { return suppressed == error.message } else if (suppressed.constructor === RegExp) { return suppressed.test(error.message) } else if (suppressed instanceof Error.constructor) { return error instanceof (suppressed as ErrorConstructor) }
+            }
+            return false
+        }
+
+        return errors.find(predicate) !== undefined
+    }
+    return { async enter() {return this} , exit }
+}
+
 export {
     nullcontext,
     closing,
+    closingAsync,
     suppress,
-    timed
+    suppressAsync,
+    timed,
+    timedAsync
 }
